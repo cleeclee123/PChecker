@@ -4,7 +4,8 @@
   "description": "Proxy Checker API",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npx tsc && node build/index.js"
   },
   "repository": {
     "type": "git",
@@ -19,5 +20,10 @@
   "homepage": "https://github.com/cleeclee123/PChecker#readme",
   "devDependencies": {
     "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "https-proxy-agent": "^5.0.1",
+    "node-fetch": "^3.3.0"
   }
 }
