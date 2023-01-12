@@ -1,0 +1,23 @@
+{
+  "name": "pchecker",
+  "version": "1.0.0",
+  "description": "Proxy Checker API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cleeclee123/PChecker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cleeclee123/PChecker/issues"
+  },
+  "homepage": "https://github.com/cleeclee123/PChecker#readme",
+  "devDependencies": {
+    "typescript": "^4.9.4"
+  }
+}
