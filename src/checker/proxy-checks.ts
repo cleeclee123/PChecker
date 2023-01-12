@@ -61,14 +61,14 @@ export const testGoogle = async (
  * timeout: curl has a built in timeout but i will timeout and kill the child process and resolve undefined
  * @param host
  * @param port
- * @param timeout
+ * @param timeout, in ms
  * @returns boolean if https is allowed by proxy, undefined
  */
 export const httpsCheck = async (
   host: string,
   port: string,
   timeout: number
-): Promise<HTTPSCheck> => {
+): Promise<HTTPSCheck | string> => {
   // curl command to get the status code of a http connect request to a host/port
   const curlTunnelStatus: ChildProcessWithoutNullStreams =
     spawn("curl", [
@@ -83,10 +83,12 @@ export const httpsCheck = async (
       `${kProxyJudgeURL}`,
     ]) || ({} as ChildProcessWithoutNullStreams);
 
+  // timeout, race this condition with httpsCheck
+  const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve("timeout"), timeout));
+
   // promise will resolve right away after streaming status code
   let httpsCheck = {} as HTTPSCheck;
-  let httpsAllowed: boolean | undefined = false;
-  return new Promise((resolve, reject) => {
+  const httpsCheckPromise: Promise<HTTPSCheck> = new Promise((resolve, reject) => {
     curlTunnelStatus.stdout.on("data", async (data) => {
       httpsCheck.status = String(data);
       // status 000, no response, curl proxy proxy
@@ -114,6 +116,23 @@ export const httpsCheck = async (
       console.log(`https check exited with code: ${code}`);
     });
   });
+
+  // user defined type guard to check HTTPSCheck type
+  function isHTTPSCheck(arg: any): arg is HTTPSCheck {
+    return arg.status !== undefined;
+  }
+  
+  // race between timeout and httpsCheck
+  try {
+    const results = await Promise.race([timeoutPromise, httpsCheckPromise]);
+    if (isHTTPSCheck(results)) {
+      return results;
+    }
+    return "timeout";
+  } catch (error) {
+    console.log(`httpsCheck error in race: ${error}`);
+    return {} as HTTPSCheck;
+  }
 };
 
 /**
