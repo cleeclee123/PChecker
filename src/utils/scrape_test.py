@@ -7,8 +7,8 @@ import socket
 
 
 def getProxiesList():
-    r = requests.get('https://free-proxy-list.net/')
-    # r = requests.get('https://www.sslproxies.org/')
+    # r = requests.get('https://free-proxy-list.net/')
+    r = requests.get('https://www.sslproxies.org/')
     soup = BeautifulSoup(r.content, 'html.parser')
     table = soup.find('tbody')
     proxies = []
@@ -99,8 +99,8 @@ def check(proxy):
         #print("connection error")
         None
             
-# proxylist = getProxiesList()
-proxylist = getProxiesGithub()
+proxylist = getProxiesList()
+# proxylist = getProxiesGithub()
 with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
     executor.map(check, proxylist)
 

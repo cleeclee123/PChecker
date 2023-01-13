@@ -13,7 +13,7 @@ export type ProxyStatus = {
 
 export type ProxyCheck = {
   response: any;
-  headers: any;
+  headers: JSON;
   anonymity: ENUM_ProxyAnonymity;
   https: HTTPSCheck;
   cause?: string[];
