@@ -4,13 +4,14 @@ import {
   ProxyCheck,
   ProxyHeaders,
   HTTPSCheck,
-  ProxyPing,
+  ProxyPingJSON,
   ProxyPerformance,
   kUserAgents,
   ProxyLocation,
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
-  fetchConfig
+  fetchConfig,
+  curlPingConfig,
 } from "./constants.js";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as dotenv from "dotenv";
@@ -27,9 +28,12 @@ const kProxyJudgeURL = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
 export const testGoogle = async (
   host: string,
   port: string
-): Promise<boolean> => { 
+): Promise<boolean> => {
   try {
-    let res = await fetch(`https://www.google.com/`, fetchConfig(host, port, 1000)["config"]);
+    let res = await fetch(
+      `https://www.google.com/`,
+      fetchConfig(host, port, 1000)["config"]
+    );
     clearTimeout(fetchConfig(host, port, 1000)["timeoutId"]);
     if (res.status === 200) {
       return true;
@@ -124,8 +128,53 @@ export const httpsCheck = async (
   }
 };
 
-export const pingCheck = (host: string, port: string, timeout: number): ProxyPing | undefined => {
-  return
+// measure the request, response, and total time with curl by spawn child process
+// reference: https://blog.josephscott.org/2011/10/14/timing-details-with-curl/
+export const pingCheck = (
+  host: string,
+  port: string,
+  timeout: number
+): Promise<ProxyPingJSON | undefined> => {
+  // returns time to connect in seconds
+  const ping: ChildProcessWithoutNullStreams =
+    spawn(
+      "curl",
+      [
+        "-s",
+        "-o",
+        "/dev/null",
+        "-w",
+        curlPingConfig,
+        "--proxy",
+        `http://${host}:${port}`,
+        `${kProxyJudgeURL}`,
+      ],
+      { timeout: timeout }
+    ) || ({} as ChildProcessWithoutNullStreams);
+
+  let json = {} as any;
+  let pingObj = {} as ProxyPingJSON;
+  let str: string = "";
+  return new Promise((resolve, reject) => {
+    ping.stdout.on("data", (data) => {
+      str += data.toString();
+      try {
+        let arr = str.split(",");
+        arr.forEach((data) => {
+          let temp = data.split(":");
+          json[String(temp[0].replace(/\s+/g, ""))] = temp[1];
+        });
+        Object.assign(pingObj, json);
+        resolve(pingObj);
+      } catch (error) {
+        console.log(`pingCheck error: ${error}`);
+        resolve(undefined);
+      }
+    });
+    ping.on("exit", (code) => {
+      console.log(`exit code ${code}`);
+    });
+  });
 };
 
 /**
@@ -140,19 +189,20 @@ export const proxyCheck = (
   timeout: number
 ): Promise<ProxyCheck | undefined> => {
   // "-i" flag outputs request, "-H" flag will remove header value: trying to make it look like a real request
-  const curlProxy: ChildProcessWithoutNullStreams = spawn(
-    "curl",
-    [
-      "-s",
-      `-H`,
-      `Proxy-Connection:`,
-      "--proxy",
-      `http://${host}:${port}`,
-      `${kProxyJudgeURL}`,
-      `-v`,
-    ],
-    { timeout: timeout }
-  );
+  const curlProxy: ChildProcessWithoutNullStreams =
+    spawn(
+      "curl",
+      [
+        "-s",
+        `-H`,
+        `Proxy-Connection:`,
+        "--proxy",
+        `http://${host}:${port}`,
+        `${kProxyJudgeURL}`,
+        `-v`,
+      ],
+      { timeout: timeout }
+    ) || ({} as ChildProcessWithoutNullStreams);
 
   let pCheck = {} as ProxyCheck;
   let pHeaders = {} as ProxyHeaders;

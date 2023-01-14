@@ -12,7 +12,7 @@ export type ProxyCheck = {
   cause?: string[];
   https: HTTPSCheck; // todo: implement to proxyCheck
   google: boolean; // todo: implement to proxyCheck
-  ping: ProxyPing; // todo: create function
+  ping: ProxyPingJSON; // todo: implement to proxyCheck
   location?: ProxyLocation; // todo: create function
   performance?: ProxyPerformance; // todo: create function
 };
@@ -43,16 +43,13 @@ export type ProxyPerformance = {
   Uptime: number;
 };
 
-// reference: https://blog.josephscott.org/2011/10/14/timing-details-with-curl/
-export type ProxyPing = {
-  time_namelookup: number;
-  time_connect: number;
-  time_appconnect: number;
-  time_pretransfer: number;
-  time_redirect: number;
-  time_starttransfer: number;
-  time_total: number;
-};
+// Recursive Type Aliases
+export type ProxyPingJSON =
+  | string
+  | number
+  | boolean
+  | { [x: string]: ProxyPingJSON }
+  | Array<ProxyPingJSON>;
 
 export type ProxyHeaders = {
   res: any;
@@ -122,3 +119,5 @@ export const fetchConfig = (host: string, port: string, timeout: number) => {
     timeoutId: timeoutId,
   };
 };
+
+export const curlPingConfig: string = `namelookup: %{time_namelookup}, connect: %{time_connect}, appconnect: %{time_appconnect}, pretransfer: %{time_pretransfer}, redirect: %{time_redirect}, starttransfer: %{time_starttransfer}, total: %{time_total}`;
