@@ -3,6 +3,7 @@ import HttpsProxyAgent from "https-proxy-agent";
 import * as readline from "readline";
 import {
   ProxyCheck,
+  ProxyHeaders,
   HTTPSCheck,
   kUserAgents,
   ENUM_ProxyAnonymity,
@@ -146,6 +147,12 @@ export const httpsCheck = async (
   }
 };
 
+export const performanceCheck = (
+  host: string,
+  port: string,
+  timeout: number
+) => {};
+
 /**
  * look at response from headers to find the anonymity of proxy
  * @param host
@@ -158,23 +165,29 @@ export const proxyCheck = (
   timeout: number
 ): Promise<ProxyCheck | undefined> => {
   // "-i" flag outputs request, "-H" flag will remove header value: trying to make it look like a real request
-  const curlProxy: ChildProcessWithoutNullStreams = spawn("curl", [
-    "-s",
-    `-H`,
-    `Proxy-Connection:`,
-    "--proxy",
-    `http://${host}:${port}`,
-    `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`,
-    `-v`,
-  ]);
+  const curlProxy: ChildProcessWithoutNullStreams = spawn(
+    "curl",
+    [
+      "-s",
+      `-H`,
+      `Proxy-Connection:`,
+      "--proxy",
+      `http://${host}:${port}`,
+      `${kProxyJudgeURL}`,
+      `-v`,
+    ],
+    { timeout: timeout }
+  );
 
   let pCheck = {} as ProxyCheck;
+  let pHeaders = {} as ProxyHeaders;
   let statusCheck: boolean = false;
   return new Promise(async (resolve, reject) => {
     // stream standard output (response from proxy judge here)
     curlProxy.stdout.on("data", async (data) => {
       // statusCheck is calculated in the stderr block, looks at response header output
       if (!statusCheck) {
+        console.log("status check here");
         resolve(undefined);
       }
       try {
@@ -207,6 +220,8 @@ export const proxyCheck = (
     // stream standard error, this is stream first anyway
     // // request/response headers are streamed here (curl -v flag)
     let lineCount: number = 0;
+    let reqHeaders = {} as any;
+    let resHeaders = {} as any;
     const rlStderr = readline.createInterface({ input: curlProxy.stderr });
     for await (const line of rlStderr) {
       // console.log(line);
@@ -231,7 +246,28 @@ export const proxyCheck = (
       if (line.indexOf(`< Via:`) !== -1) {
         pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous;
       }
+
+      // add to request headers
+      if (line.indexOf(`> `) !== -1 && line.indexOf(`GET`) === -1) {
+        let kv = line.slice(2).split(":");
+        reqHeaders[`${kv[0]}`] = kv[1];
+      }
+
+      // add to response headers
+      if (line.indexOf(`< `) !== -1 && line.indexOf(`:`) !== -1) {
+        let kv = line.slice(2).split(":");
+        resHeaders[`${kv[0]}`] = kv[1];
+      }
     }
+    try {
+      pHeaders.req = JSON.parse(JSON.stringify(reqHeaders));
+      pHeaders.res = JSON.parse(JSON.stringify(resHeaders));
+    } catch (error) {
+      console.log("json parse error");
+      pHeaders.req = reqHeaders;
+      pHeaders.res = resHeaders;
+    }
+    pCheck.headers = pHeaders;
     rlStderr.close();
     rlStderr.removeAllListeners();
 
@@ -244,6 +280,10 @@ export const proxyCheck = (
     // handle spawn exit
     curlProxy.on("exit", async (code) => {
       console.log(`exited with code: ${code}`);
+      if (code === null) {
+        console.log(`proxyCheck timeout`);
+        resolve({} as ProxyCheck);
+      }
       if (code !== 0) {
         reject(new Error(`proxyCheck cp error`));
       }

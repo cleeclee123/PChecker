@@ -7,11 +7,12 @@ export type ProxyCheck = {
   headers: any;
   anonymity: ENUM_ProxyAnonymity;
   type: string[];
-  https: HTTPSCheck;
   cause?: string[];
-  location?: ProxyLocation;
-  performance?: ProxyPerformance;
-  ping?: ProxyPing;
+  https: HTTPSCheck; // todo: implement to proxyCheck
+  google: boolean; // todo: implement to proxyCheck
+  ping: ProxyPing; // todo: create function
+  location?: ProxyLocation; // todo: create function 
+  performance?: ProxyPerformance; // todo: create function
 };
 
 // optional type if location data is available
@@ -33,7 +34,7 @@ export type HTTPSCheck = {
   https: boolean | undefined;
 };
 
-// store in database
+// values from database
 export type ProxyPerformance = {
   checkCount: number;
   successCount: number;
@@ -49,6 +50,11 @@ export type ProxyPing = {
   time_redirect: number;
   time_starttransfer: number;
   time_total: number;
+};
+
+export type ProxyHeaders = {
+  res: any;
+  req: any
 };
 
 /* ENUMS */
