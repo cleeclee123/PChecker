@@ -13,7 +13,7 @@ export type ProxyCheck = {
   https: HTTPSCheck; // todo: implement to proxyCheck
   google: boolean; // todo: implement to proxyCheck
   ping: ProxyPingJSON; // todo: implement to proxyCheck
-  location?: ProxyLocation; // todo: create function
+  location?: ProxyLocation; // todo: implement to proxyCheck
   performance?: ProxyPerformance; // todo: create function
 };
 
@@ -40,7 +40,7 @@ export type HTTPSCheck = {
 export type ProxyPerformance = {
   checkCount: number;
   successCount: number;
-  Uptime: number;
+  uptime: number;
 };
 
 // Recursive Type Aliases

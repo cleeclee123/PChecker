@@ -327,57 +327,53 @@ export async function getMyPublicIP() {
   }
 }
 
-// export async function getLocation(
-//   host: string,
-//   port: string
-// ): Promise<ProxyLocation | undefined> {
-//   /** @todo: build custom implementation of http agent (tunneling), this will go thru proxy express server (configs will be handled in proxy server)*/
-//   try {
-//     let status = {} as ProxyLocation;
-//     return await fetch(`http://ip-api.com/json/`, fetchConfig(host, port)).then(
-//       async (response) => {
-//         if (response.status === 400) {
-//           console.log("400 response");
-//           status.status = false;
-//           return status;
-//         }
-//         const contentType = response.headers.get("content-type");
-//         if (contentType && contentType.indexOf("application/json") === -1) {
-//           console.log("response is not json");
-//           status.status = false;
-//           return status;
-//         }
-//         const isAnonymousCallBack = async (): Promise<boolean> => {
-//           return getMyPublicIP().then((publicip) => {
-//             if (String(data["query"]) !== publicip) {
-//               return true;
-//             }
-//             return false;
-//           });
-//         };
-//         let data: any = await response.json();
-//         if (host === String(data["query"]) || (await isAnonymousCallBack())) {
-//           status.hidesIP = true;
-//           status.anonymity = "anonymous";
-//           status.status = true;
-//           status.country = String(data["country"]);
-//           status.region = String(data["regionName"]);
-//           status.city = String(data["city"]);
-//           status.zip = String(data["zip"]);
-//           status.location = {
-//             lat: String(data["lat"]),
-//             long: String(data["lon"]),
-//           };
-//           status.tz = String(data["timezone"]);
-//           status.isp = String(data["isp"]);
-//           return status;
-//         }
-//         console.log(`http error in response block`);
-//         status.status = false;
-//         return status;
-//       }
-//     );
-//   } catch (error) {
-//     console.log(`http error: ${error}`);
-//   }
-// }
+// helper function to get location data of ip address from api
+export async function getLocation(
+  host: string,
+  port: string,
+  timeout: number
+): Promise<ProxyLocation | undefined> {
+  /** @todo: build custom implementation of http agent (tunneling), this will go thru proxy express server (configs will be handled in proxy server)*/
+  try {
+    let status = {} as ProxyLocation;
+    let response = await fetch(
+      `http://ip-api.com/json/`,
+      fetchConfig(host, port, timeout)["config"]
+    );
+    clearTimeout(fetchConfig(host, port, 1000)["timeoutId"]);
+    if (response.status !== 200) {
+      console.log("getLocation status error");
+      return undefined;
+    }
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") === -1) {
+      console.log("response is not json");
+    }
+    const isAnonymousCallBack = async (): Promise<boolean> => {
+      return getMyPublicIP().then((publicip) => {
+        if (String(data["query"]) !== publicip) {
+          return true;
+        }
+        return false;
+      });
+    };
+    let data: any = await response.json();
+    if (host === String(data["query"]) || (await isAnonymousCallBack())) {
+      status.country = String(data["country"]);
+      status.region = String(data["regionName"]);
+      status.city = String(data["city"]);
+      status.zip = String(data["zip"]);
+      status.location = {
+        lat: String(data["lat"]),
+        long: String(data["lon"]),
+      };
+      status.tz = String(data["timezone"]);
+      status.isp = String(data["isp"]);
+      return status;
+    }
+    return status;
+  } catch (error) {
+    console.log(`getLocation error: ${error}`);
+    return {} as ProxyLocation;
+  }
+}
