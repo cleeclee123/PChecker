@@ -1,13 +1,16 @@
 import fetch from "node-fetch";
-import HttpsProxyAgent from "https-proxy-agent";
 import * as readline from "readline";
 import {
   ProxyCheck,
   ProxyHeaders,
   HTTPSCheck,
+  ProxyPing,
+  ProxyPerformance,
   kUserAgents,
+  ProxyLocation,
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
+  fetchConfig
 } from "./constants.js";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as dotenv from "dotenv";
@@ -24,36 +27,10 @@ const kProxyJudgeURL = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
 export const testGoogle = async (
   host: string,
   port: string
-): Promise<boolean> => {
-  // 5 second timeout to fetch response
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000);
-
-  // helper funtion to create request header and https prpxy agent for fetch
-  const fetchConfig = () => {
-    return {
-      // headers inspired from https://oxylabs.io/blog/5-key-http-headers-for-web-scraping
-      headers: {
-        "User-Agent":
-          kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
-        Accept: "text/html",
-        "Accept-Language": "en-US",
-        "Accept-Encoding": "gzip, deflate",
-        Connection: "Keep-Alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Cache-Control": "max-age=259200",
-        Referer: "http://www.google.com/",
-      },
-      agent: new HttpsProxyAgent.HttpsProxyAgent({
-        host: host,
-        port: Number(port),
-      }),
-      signal: controller.signal,
-    };
-  };
+): Promise<boolean> => { 
   try {
-    let res = await fetch(`https://www.google.com/`, fetchConfig());
-    clearTimeout(timeoutId);
+    let res = await fetch(`https://www.google.com/`, fetchConfig(host, port, 1000)["config"]);
+    clearTimeout(fetchConfig(host, port, 1000)["timeoutId"]);
     if (res.status === 200) {
       return true;
     }
@@ -147,11 +124,9 @@ export const httpsCheck = async (
   }
 };
 
-export const performanceCheck = (
-  host: string,
-  port: string,
-  timeout: number
-) => {};
+export const pingCheck = (host: string, port: string, timeout: number): ProxyPing | undefined => {
+  return
+};
 
 /**
  * look at response from headers to find the anonymity of proxy
@@ -301,3 +276,58 @@ export async function getMyPublicIP() {
     return undefined;
   }
 }
+
+// export async function getLocation(
+//   host: string,
+//   port: string
+// ): Promise<ProxyLocation | undefined> {
+//   /** @todo: build custom implementation of http agent (tunneling), this will go thru proxy express server (configs will be handled in proxy server)*/
+//   try {
+//     let status = {} as ProxyLocation;
+//     return await fetch(`http://ip-api.com/json/`, fetchConfig(host, port)).then(
+//       async (response) => {
+//         if (response.status === 400) {
+//           console.log("400 response");
+//           status.status = false;
+//           return status;
+//         }
+//         const contentType = response.headers.get("content-type");
+//         if (contentType && contentType.indexOf("application/json") === -1) {
+//           console.log("response is not json");
+//           status.status = false;
+//           return status;
+//         }
+//         const isAnonymousCallBack = async (): Promise<boolean> => {
+//           return getMyPublicIP().then((publicip) => {
+//             if (String(data["query"]) !== publicip) {
+//               return true;
+//             }
+//             return false;
+//           });
+//         };
+//         let data: any = await response.json();
+//         if (host === String(data["query"]) || (await isAnonymousCallBack())) {
+//           status.hidesIP = true;
+//           status.anonymity = "anonymous";
+//           status.status = true;
+//           status.country = String(data["country"]);
+//           status.region = String(data["regionName"]);
+//           status.city = String(data["city"]);
+//           status.zip = String(data["zip"]);
+//           status.location = {
+//             lat: String(data["lat"]),
+//             long: String(data["lon"]),
+//           };
+//           status.tz = String(data["timezone"]);
+//           status.isp = String(data["isp"]);
+//           return status;
+//         }
+//         console.log(`http error in response block`);
+//         status.status = false;
+//         return status;
+//       }
+//     );
+//   } catch (error) {
+//     console.log(`http error: ${error}`);
+//   }
+// }

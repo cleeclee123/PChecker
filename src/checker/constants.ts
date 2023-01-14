@@ -1,3 +1,5 @@
+import HttpsProxyAgent from "https-proxy-agent";
+
 /*  TYPES  */
 
 // main type return in pChecker
@@ -11,7 +13,7 @@ export type ProxyCheck = {
   https: HTTPSCheck; // todo: implement to proxyCheck
   google: boolean; // todo: implement to proxyCheck
   ping: ProxyPing; // todo: create function
-  location?: ProxyLocation; // todo: create function 
+  location?: ProxyLocation; // todo: create function
   performance?: ProxyPerformance; // todo: create function
 };
 
@@ -34,7 +36,7 @@ export type HTTPSCheck = {
   https: boolean | undefined;
 };
 
-// values from database
+// values from database, put in middleware?
 export type ProxyPerformance = {
   checkCount: number;
   successCount: number;
@@ -54,7 +56,7 @@ export type ProxyPing = {
 
 export type ProxyHeaders = {
   res: any;
-  req: any
+  req: any;
 };
 
 /* ENUMS */
@@ -90,3 +92,33 @@ export const kUserAgents: string[] = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9",
   "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36",
 ];
+
+// helper funtion to create request header and https prpxy agent for fetch
+export const fetchConfig = (host: string, port: string, timeout: number) => {
+  // 5 second timeout to fetch response
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  return {
+    // headers inspired from https://oxylabs.io/blog/5-key-http-headers-for-web-scraping
+    config: {
+      headers: {
+        "User-Agent":
+          kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
+        Accept: "text/html",
+        "Accept-Language": "en-US",
+        "Accept-Encoding": "gzip, deflate",
+        Connection: "Keep-Alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Cache-Control": "max-age=259200",
+        Referer: "http://www.google.com/",
+      },
+      agent: new HttpsProxyAgent.HttpsProxyAgent({
+        host: host,
+        port: Number(port),
+      }),
+      signal: controller.signal,
+    },
+    timeoutId: timeoutId,
+  };
+};
