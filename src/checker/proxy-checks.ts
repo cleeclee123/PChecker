@@ -6,7 +6,6 @@ import {
   HTTPSCheck,
   ProxyPingJSON,
   ProxyPerformance,
-  kUserAgents,
   ProxyLocation,
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
@@ -57,7 +56,7 @@ export const httpsCheck = async (
   host: string,
   port: string,
   timeout: number
-): Promise<HTTPSCheck | string> => {
+): Promise<HTTPSCheck | undefined> => {
   // curl command to get the status code of a http connect request to a host/port
   const curlTunnelStatus: ChildProcessWithoutNullStreams =
     spawn("curl", [
@@ -105,7 +104,7 @@ export const httpsCheck = async (
 
       // handle exit
       curlTunnelStatus.on("exit", (code) => {
-        console.log(`https check exited with code: ${code}`);
+        console.log(`httpsCheck exit code: ${code}`);
       });
     }
   );
@@ -121,7 +120,8 @@ export const httpsCheck = async (
     if (isHTTPSCheck(results)) {
       return results;
     }
-    return "timeout";
+    console.log("timeouted");
+    return undefined;
   } catch (error) {
     console.log(`httpsCheck error in race: ${error}`);
     return {} as HTTPSCheck;
@@ -164,6 +164,10 @@ export const pingCheck = (
           let temp = data.split(":");
           json[String(temp[0].replace(/\s+/g, ""))] = temp[1];
         });
+        ping.stdout.destroy();
+        ping.stderr.destroy();
+        ping.kill("SIGKILL");
+
         Object.assign(pingObj, json);
         resolve(pingObj);
       } catch (error) {
@@ -172,7 +176,7 @@ export const pingCheck = (
       }
     });
     ping.on("exit", (code) => {
-      console.log(`exit code ${code}`);
+      console.log(`pingCheck cp exit code: ${code}`);
     });
   });
 };
@@ -233,7 +237,25 @@ export const proxyCheck = (
             toFlag.push(key);
           }
           pCheck.cause = toFlag;
+          if (pCheck.cause.length === 0) {
+            pCheck.anonymity = ENUM_ProxyAnonymity.Elite;
+          }
         });
+        let pAll = await Promise.all([
+          httpsCheck(host, port, timeout) || ({} as HTTPSCheck),
+          testGoogle(host, port),
+          pingCheck(host, port, timeout) || ({} as ProxyPingJSON),
+          getLocation(host, port, timeout) || ({} as ProxyLocation),
+        ]);
+        pCheck.https = pAll[0];
+        pCheck.google = pAll[1];
+        pCheck.ping = pAll[2];
+        pCheck.location = pAll[3];
+
+        // delete pCheck.response["URI"];
+        curlProxy.stdout.destroy();
+        curlProxy.stderr.destroy();
+        curlProxy.kill("SIGKILL");
 
         resolve(pCheck);
       } catch (error) {
@@ -277,22 +299,13 @@ export const proxyCheck = (
         let kv = line.slice(2).split(":");
         reqHeaders[`${kv[0]}`] = kv[1];
       }
-
-      // add to response headers
-      if (line.indexOf(`< `) !== -1 && line.indexOf(`:`) !== -1) {
-        let kv = line.slice(2).split(":");
-        resHeaders[`${kv[0]}`] = kv[1];
-      }
     }
     try {
-      pHeaders.req = JSON.parse(JSON.stringify(reqHeaders));
-      pHeaders.res = JSON.parse(JSON.stringify(resHeaders));
+      pCheck.request = JSON.parse(JSON.stringify(reqHeaders));
     } catch (error) {
       console.log("json parse error");
-      pHeaders.req = reqHeaders;
-      pHeaders.res = resHeaders;
+      pCheck.request = reqHeaders;
     }
-    pCheck.headers = pHeaders;
     rlStderr.close();
     rlStderr.removeAllListeners();
 
@@ -304,7 +317,7 @@ export const proxyCheck = (
 
     // handle spawn exit
     curlProxy.on("exit", async (code) => {
-      console.log(`exited with code: ${code}`);
+      console.log(`proxyCheck cp exit: ${code}`);
       if (code === null) {
         console.log(`proxyCheck timeout`);
         resolve({} as ProxyCheck);
@@ -333,7 +346,6 @@ export async function getLocation(
   port: string,
   timeout: number
 ): Promise<ProxyLocation | undefined> {
-  /** @todo: build custom implementation of http agent (tunneling), this will go thru proxy express server (configs will be handled in proxy server)*/
   try {
     let status = {} as ProxyLocation;
     let response = await fetch(
@@ -359,6 +371,7 @@ export async function getLocation(
     };
     let data: any = await response.json();
     if (host === String(data["query"]) || (await isAnonymousCallBack())) {
+      // assignment is a bit redunant, todo: switch to interface and cast
       status.country = String(data["country"]);
       status.region = String(data["regionName"]);
       status.city = String(data["city"]);

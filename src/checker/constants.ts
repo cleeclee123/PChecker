@@ -5,15 +5,15 @@ import HttpsProxyAgent from "https-proxy-agent";
 // main type return in pChecker
 export type ProxyCheck = {
   proxyString: string;
+  request: any;
   response: any;
-  headers: any;
   anonymity: ENUM_ProxyAnonymity;
   type: string[];
   cause?: string[];
-  https: HTTPSCheck; // todo: implement to proxyCheck
-  google: boolean; // todo: implement to proxyCheck
-  ping: ProxyPingJSON; // todo: implement to proxyCheck
-  location?: ProxyLocation; // todo: implement to proxyCheck
+  https: HTTPSCheck; 
+  google: boolean; 
+  ping: ProxyPingJSON; 
+  location?: ProxyLocation; 
   performance?: ProxyPerformance; // todo: create function
 };
 
