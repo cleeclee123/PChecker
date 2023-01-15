@@ -11,7 +11,7 @@ import {
   ENUM_FlaggedHeaderValues,
   fetchConfig,
   curlPingConfig,
-  PublicIPRes
+  PublicIPRes,
 } from "./constants.js";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as dotenv from "dotenv";
@@ -57,7 +57,7 @@ export const httpsCheck = async (
   host: string,
   port: string,
   timeout: number
-): Promise<HTTPSCheck | undefined> => {
+): Promise<HTTPSCheck> => {
   // curl command to get the status code of a http connect request to a host/port
   const curlTunnelStatus: ChildProcessWithoutNullStreams =
     spawn("curl", [
@@ -74,7 +74,7 @@ export const httpsCheck = async (
 
   // timeout, race this condition with httpsCheck
   const timeoutPromise = new Promise((resolve) =>
-    setTimeout(() => resolve("timeout"), timeout)
+    setTimeout(() => resolve({} as HTTPSCheck), timeout)
   );
 
   // promise will resolve right away after streaming status code
