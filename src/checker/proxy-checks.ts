@@ -11,6 +11,7 @@ import {
   ENUM_FlaggedHeaderValues,
   fetchConfig,
   curlPingConfig,
+  PublicIPRes
 } from "./constants.js";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as dotenv from "dotenv";
@@ -162,7 +163,10 @@ export const pingCheck = (
         let arr = str.split(",");
         arr.forEach((data) => {
           let temp = data.split(":");
-          json[String(temp[0].replace(/\s+/g, ""))] = temp[1].replace(/\s+/g, "");
+          json[String(temp[0].replace(/\s+/g, ""))] = temp[1].replace(
+            /\s+/g,
+            ""
+          );
         });
         ping.stdout.destroy();
         ping.stderr.destroy();
@@ -221,7 +225,7 @@ export const proxyCheck = (
       }
       try {
         pHeaders.res = JSON.parse(await data.toString());
-        let publicIP: any = (await getMyPublicIP()) || {};
+        let publicIP: any = (await getMyPublicIP(timeout)) || {};
         let toFlag: any[] = [];
         Object.keys(pHeaders.res).forEach(async (key) => {
           if (key in ENUM_FlaggedHeaderValues) {
@@ -334,13 +338,21 @@ export const proxyCheck = (
 };
 
 // helper function to get my public ip address
-export async function getMyPublicIP() {
+export async function getMyPublicIP(timeout: number) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  let publicIP = {} as PublicIPRes;
   try {
-    const res = await fetch("https://api.ipify.org/?format=json");
-    return await res.json();
+    const res = await fetch("https://api.ipify.org/?format=json", {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    Object.assign(publicIP, await res.json());
+    return publicIP;
   } catch (error) {
     console.log(`getMyPublicIP error: ${error}`);
-    return undefined;
+    return {} as PublicIPRes;
   }
 }
 
@@ -366,7 +378,7 @@ export async function getLocation(
       console.log("response is not json");
     }
     const isAnonymousCallBack = async (): Promise<boolean> => {
-      return getMyPublicIP().then((publicip) => {
+      return getMyPublicIP(timeout).then((publicip) => {
         if (String(data["query"]) !== publicip) {
           return true;
         }
