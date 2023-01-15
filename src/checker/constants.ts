@@ -52,6 +52,8 @@ export type TypeAliasesTemp =
 
 export type ProxyPing = TypeAliasesTemp;
 
+export type PublicIPRes = TypeAliasesTemp;
+
 export type ProxyHeaders = {
   res: JSON;
   req: JSON;
