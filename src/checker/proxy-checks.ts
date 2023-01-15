@@ -4,7 +4,7 @@ import {
   ProxyCheck,
   ProxyHeaders,
   HTTPSCheck,
-  ProxyPingJSON,
+  ProxyPing,
   ProxyPerformance,
   ProxyLocation,
   ENUM_ProxyAnonymity,
@@ -134,7 +134,7 @@ export const pingCheck = (
   host: string,
   port: string,
   timeout: number
-): Promise<ProxyPingJSON | undefined> => {
+): Promise<ProxyPing | undefined> => {
   // returns time to connect in seconds
   const ping: ChildProcessWithoutNullStreams =
     spawn(
@@ -153,7 +153,7 @@ export const pingCheck = (
     ) || ({} as ChildProcessWithoutNullStreams);
 
   let json = {} as any;
-  let pingObj = {} as ProxyPingJSON;
+  let pingObj = {} as ProxyPing;
   let str: string = "";
   return new Promise((resolve, reject) => {
     ping.stdout.on("data", (data) => {
@@ -162,7 +162,7 @@ export const pingCheck = (
         let arr = str.split(",");
         arr.forEach((data) => {
           let temp = data.split(":");
-          json[String(temp[0].replace(/\s+/g, ""))] = temp[1];
+          json[String(temp[0].replace(/\s+/g, ""))] = temp[1].replace(/\s+/g, "");
         });
         ping.stdout.destroy();
         ping.stderr.destroy();
@@ -220,13 +220,16 @@ export const proxyCheck = (
         resolve(undefined);
       }
       try {
-        pCheck.response = JSON.parse(await data.toString());
+        pHeaders.res = JSON.parse(await data.toString());
         let publicIP: any = (await getMyPublicIP()) || {};
         let toFlag: any[] = [];
-        Object.keys(pCheck.response).forEach(async (key) => {
+        Object.keys(pHeaders.res).forEach(async (key) => {
           if (key in ENUM_FlaggedHeaderValues) {
             if (publicIP !== undefined || publicIP !== ({} as any)) {
-              if (String(pCheck.response[key]) === String(publicIP["ip"])) {
+              if (
+                String(pHeaders.res[key as keyof JSON]) ===
+                String(publicIP["ip"])
+              ) {
                 pCheck.anonymity = ENUM_ProxyAnonymity.Transparent;
               } else {
                 pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous;
@@ -244,7 +247,7 @@ export const proxyCheck = (
         let pAll = await Promise.all([
           httpsCheck(host, port, timeout) || ({} as HTTPSCheck),
           testGoogle(host, port),
-          pingCheck(host, port, timeout) || ({} as ProxyPingJSON),
+          pingCheck(host, port, timeout) || ({} as ProxyPing),
           getLocation(host, port, timeout) || ({} as ProxyLocation),
         ]);
         pCheck.https = pAll[0];
@@ -301,11 +304,12 @@ export const proxyCheck = (
       }
     }
     try {
-      pCheck.request = JSON.parse(JSON.stringify(reqHeaders));
+      pHeaders.req = JSON.parse(JSON.stringify(reqHeaders));
     } catch (error) {
       console.log("json parse error");
-      pCheck.request = reqHeaders;
+      pHeaders.req = reqHeaders;
     }
+    pCheck.headers = pHeaders;
     rlStderr.close();
     rlStderr.removeAllListeners();
 

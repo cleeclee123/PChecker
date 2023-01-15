@@ -5,14 +5,13 @@ import HttpsProxyAgent from "https-proxy-agent";
 // main type return in pChecker
 export type ProxyCheck = {
   proxyString: string;
-  request: any;
-  response: any;
+  headers: ProxyHeaders;
   anonymity: ENUM_ProxyAnonymity;
   type: string[];
   cause?: string[];
   https: HTTPSCheck; 
   google: boolean; 
-  ping: ProxyPingJSON; 
+  ping: ProxyPing; 
   location?: ProxyLocation; 
   performance?: ProxyPerformance; // todo: create function
 };
@@ -44,16 +43,18 @@ export type ProxyPerformance = {
 };
 
 // Recursive Type Aliases
-export type ProxyPingJSON =
+export type TypeAliasesTemp =
   | string
   | number
   | boolean
-  | { [x: string]: ProxyPingJSON }
-  | Array<ProxyPingJSON>;
+  | { [x: string]: TypeAliasesTemp }
+  | Array<TypeAliasesTemp>;
+
+export type ProxyPing = TypeAliasesTemp;
 
 export type ProxyHeaders = {
-  res: any;
-  req: any;
+  res: JSON;
+  req: JSON;
 };
 
 /* ENUMS */
