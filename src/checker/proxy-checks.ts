@@ -27,14 +27,15 @@ const kProxyJudgeURL = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
  */
 export const testGoogle = async (
   host: string,
-  port: string
+  port: string,
+  timeout: number,
 ): Promise<boolean> => {
   try {
     let res = await fetch(
       `https://www.google.com/`,
-      fetchConfig(host, port, 1000)["config"]
+      fetchConfig(host, port, timeout)["config"]
     );
-    clearTimeout(fetchConfig(host, port, 1000)["timeoutId"]);
+    clearTimeout(fetchConfig(host, port, timeout)["timeoutId"]);
     if (res.status === 200) {
       return true;
     }
@@ -220,7 +221,7 @@ export const proxyCheck = (
     curlProxy.stdout.on("data", async (data) => {
       // statusCheck is calculated in the stderr block, looks at response header output
       if (!statusCheck) {
-        console.log("status check here");
+        console.log("status check error");
         resolve(undefined);
       }
       try {
@@ -250,7 +251,7 @@ export const proxyCheck = (
         });
         let pAll = await Promise.all([
           httpsCheck(host, port, timeout) || ({} as HTTPSCheck),
-          testGoogle(host, port),
+          testGoogle(host, port, timeout),
           pingCheck(host, port, timeout) || ({} as ProxyPing),
           getLocation(host, port, timeout) || ({} as ProxyLocation),
         ]);
@@ -259,7 +260,6 @@ export const proxyCheck = (
         pCheck.ping = pAll[2];
         pCheck.location = pAll[3];
 
-        // delete pCheck.response["URI"];
         curlProxy.stdout.destroy();
         curlProxy.stderr.destroy();
         curlProxy.kill("SIGKILL");
@@ -268,14 +268,12 @@ export const proxyCheck = (
       } catch (error) {
         console.log(`curlProxy error: ${error}`);
       }
-      // console.log(data.toString());
     });
 
     // stream standard error, this is stream first anyway
     // // request/response headers are streamed here (curl -v flag)
     let lineCount: number = 0;
     let reqHeaders = {} as any;
-    let resHeaders = {} as any;
     const rlStderr = readline.createInterface({ input: curlProxy.stderr });
     for await (const line of rlStderr) {
       // console.log(line);
