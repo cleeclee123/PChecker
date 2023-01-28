@@ -14,37 +14,12 @@ import {
   PublicIPRes,
 } from "./constants.js";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import pidusage from "pidusage";
 import * as dotenv from "dotenv";
 dotenv.config();
 
 // deployed this php script https://github.com/cleeclee123/azenv to apache server
 const kProxyJudgeURL = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
-
-/**
- * tests if proxies work by checking connection through google
- * @param proxy: host, port
- * @returns if proxy works with google
- */
-export const testGoogle = async (
-  host: string,
-  port: string,
-  timeout: number,
-): Promise<boolean> => {
-  try {
-    let res = await fetch(
-      `https://www.google.com/`,
-      fetchConfig(host, port, timeout)["config"]
-    );
-    clearTimeout(fetchConfig(host, port, timeout)["timeoutId"]);
-    if (res.status === 200) {
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.log(`google error: ${error}`);
-    return false;
-  }
-};
 
 /**
  * to check if proxy allows https, send a http connect request to proxy through curl
@@ -72,6 +47,11 @@ export const httpsCheck = async (
       `http://${host}:${port}`,
       `${kProxyJudgeURL}`,
     ]) || ({} as ChildProcessWithoutNullStreams);
+
+  // process cpu % and memory usage of a PID
+  pidusage(curlTunnelStatus.pid, (error, stats) => {
+    console.log(stats);
+  });
 
   // timeout, race this condition with httpsCheck
   const timeoutPromise = new Promise((resolve) =>
@@ -154,6 +134,11 @@ export const pingCheck = (
       { timeout: timeout }
     ) || ({} as ChildProcessWithoutNullStreams);
 
+  // process cpu % and memory usage of a PID
+  pidusage(ping.pid, (error, stats) => {
+    console.log(stats);
+  });
+
   let json = {} as any;
   let pingObj = {} as ProxyPing;
   let str: string = "";
@@ -213,6 +198,11 @@ export const proxyCheck = (
       { timeout: timeout }
     ) || ({} as ChildProcessWithoutNullStreams);
 
+  // process cpu % and memory usage of a PID
+  pidusage(curlProxy.pid, (error, stats) => {
+    console.log(stats);
+  });
+
   let pCheck = {} as ProxyCheck;
   let pHeaders = {} as ProxyHeaders;
   let statusCheck: boolean = false;
@@ -249,6 +239,7 @@ export const proxyCheck = (
             pCheck.anonymity = ENUM_ProxyAnonymity.Elite;
           }
         });
+
         let pAll = await Promise.all([
           httpsCheck(host, port, timeout) || ({} as HTTPSCheck),
           testGoogle(host, port, timeout),
@@ -402,5 +393,31 @@ export async function getLocation(
   } catch (error) {
     console.log(`getLocation error: ${error}`);
     return {} as ProxyLocation;
+  }
+}
+
+/**
+ * tests if proxies work by checking connection through google
+ * @param proxy: host, port
+ * @returns if proxy works with google
+ */
+export async function testGoogle(
+  host: string,
+  port: string,
+  timeout: number
+): Promise<boolean> {
+  try {
+    let res = await fetch(
+      `https://www.google.com/`,
+      fetchConfig(host, port, timeout)["config"]
+    );
+    clearTimeout(fetchConfig(host, port, timeout)["timeoutId"]);
+    if (res.status === 200) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.log(`google error: ${error}`);
+    return false;
   }
 }
