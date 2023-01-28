@@ -20,12 +20,14 @@
   },
   "homepage": "https://github.com/cleeclee123/PChecker#readme",
   "devDependencies": {
+    "@types/pidusage": "^2.0.2",
     "typescript": "^4.9.4"
   },
   "dependencies": {
     "dotenv": "^16.0.3",
     "https-proxy-agent": "^5.0.1",
     "node-fetch": "^3.3.0",
+    "pidusage": "^3.0.2",
     "piscina": "^3.2.0"
   }
 }
