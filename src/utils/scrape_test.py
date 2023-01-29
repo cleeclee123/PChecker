@@ -13,8 +13,8 @@ def getProxiesList():
     table = soup.find('tbody')
     proxies = []
     for row in table:
-        # if row.find_all('td')[4].text == 'anonymous':
         if row.find_all('td')[4].text == 'elite proxy':
+        # if row.find_all('td')[4].text == 'anonymous':
             proxy = ':'.join([row.find_all('td')[0].text,
                              row.find_all('td')[1].text])
             proxies.append(proxy)

@@ -4,14 +4,14 @@ import HttpsProxyAgent from "https-proxy-agent";
 
 // main type return in pChecker
 export type ProxyCheck = {
-  proxyString: string;
-  headers: ProxyHeaders;
-  anonymity: ENUM_ProxyAnonymity;
-  type: string[];
+  proxyString?: string;
+  headers?: ProxyHeaders;
+  anonymity?: ENUM_ProxyAnonymity;
+  type?: string[];
   cause?: string[];
-  https: HTTPSCheck; 
-  google: boolean; 
-  ping: ProxyPing; 
+  https?: HTTPSCheck; 
+  google?: boolean; 
+  ping?: PingCheck; 
   location?: ProxyLocation; 
   performance?: ProxyPerformance; // todo: create function
 };
@@ -50,7 +50,7 @@ export type TypeAliasesTemp =
   | { [x: string]: TypeAliasesTemp }
   | Array<TypeAliasesTemp>;
 
-export type ProxyPing = TypeAliasesTemp;
+export type PingCheck = TypeAliasesTemp;
 
 export type PublicIPRes = TypeAliasesTemp;
 
@@ -58,6 +58,16 @@ export type ProxyHeaders = {
   res: JSON;
   req: JSON;
 };
+
+/// export interface 
+
+// export interface SpawnProcess {
+//   instance_: SpawnProcess;
+//   httpsProcess_: ChildProcessWithoutNullStreams;
+//   pingProcess_: ChildProcessWithoutNullStreams;
+//   proxyProcess_: ChildProcessWithoutNullStreams;
+//   superThis_: PChecker;
+// }
 
 /* ENUMS */
 

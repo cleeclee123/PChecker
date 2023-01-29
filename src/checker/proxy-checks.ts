@@ -4,7 +4,7 @@ import {
   ProxyCheck,
   ProxyHeaders,
   HTTPSCheck,
-  ProxyPing,
+  PingCheck,
   ProxyPerformance,
   ProxyLocation,
   ENUM_ProxyAnonymity,
@@ -116,7 +116,7 @@ export const pingCheck = (
   host: string,
   port: string,
   timeout: number
-): Promise<ProxyPing | undefined> => {
+): Promise<PingCheck | undefined> => {
   // returns time to connect in seconds
   const ping: ChildProcessWithoutNullStreams =
     spawn(
@@ -140,7 +140,7 @@ export const pingCheck = (
   });
 
   let json = {} as any;
-  let pingObj = {} as ProxyPing;
+  let pingObj = {} as PingCheck;
   let str: string = "";
   return new Promise((resolve, reject) => {
     ping.stdout.on("data", (data) => {
@@ -243,7 +243,7 @@ export const proxyCheck = (
         let pAll = await Promise.all([
           httpsCheck(host, port, timeout) || ({} as HTTPSCheck),
           testGoogle(host, port, timeout),
-          pingCheck(host, port, timeout) || ({} as ProxyPing),
+          pingCheck(host, port, timeout) || ({} as PingCheck),
           getLocation(host, port, timeout) || ({} as ProxyLocation),
         ]);
         pCheck.https = pAll[0];

@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx tsc && node build/index.js"
+    "start": "npx tsc && node build/index.js",
+    "pch": "npx tsc && node build/PChecker.js"
   },
   "repository": {
     "type": "git",
