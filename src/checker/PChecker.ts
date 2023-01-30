@@ -1,3 +1,5 @@
+"use strict";
+
 import fetch from "node-fetch";
 import {
   curlPingConfig,
@@ -74,6 +76,21 @@ class SpawnProcess {
         { timeout: superThis.timeout_ }
       ) || ({} as ChildProcessWithoutNullStreams);
   }
+
+  public destroy(): void {
+    this.httpsProcess_.removeAllListeners();
+    this.httpsProcess_.stdout.destroy();
+    this.httpsProcess_.stderr.destroy();
+    this.httpsProcess_.kill("SIGKILL");
+    this.pingProcess_.removeAllListeners();
+    this.pingProcess_.stdout.destroy();
+    this.pingProcess_.stderr.destroy();
+    this.pingProcess_.kill("SIGKILL");
+    this.proxyProcess_.removeAllListeners();
+    this.proxyProcess_.stdout.destroy();
+    this.proxyProcess_.stderr.destroy();
+    this.proxyProcess_.kill("SIGKILL");
+  }
 }
 
 type Checker = {
@@ -90,6 +107,8 @@ export class PChecker {
   public port_: string;
   public timeout_: number;
   public spawnProcesses_: SpawnProcess;
+  private timeoutsArray_: Array<any>;
+
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
 
   constructor(host: string, port: string, timeout: string) {
@@ -105,6 +124,7 @@ export class PChecker {
     const timeoutPromise: Promise<HTTPSCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as HTTPSCheck), this.timeout_)
     );
+    this.timeoutsArray_.push(timeoutPromise);
 
     let httpsCheck = {} as HTTPSCheck;
     const httpsCheckPromise: Promise<HTTPSCheck> = new Promise(
@@ -156,6 +176,7 @@ export class PChecker {
     const timeoutPromise: Promise<PingCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as PingCheck), this.timeout_)
     );
+    this.timeoutsArray_.push(timeoutPromise);
 
     let json = {} as any;
     let pingObj = {} as PingCheck;
@@ -323,6 +344,8 @@ export class PChecker {
         `https://www.google.com/`,
         fetchConfig(this.host_, this.port_, this.timeout_)["config"]
       );
+      
+      this.timeoutsArray_.push(fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]);
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
@@ -344,6 +367,8 @@ export class PChecker {
         `http://ip-api.com/json/`,
         fetchConfig(this.host_, this.port_, this.timeout_)["config"]
       );
+    
+      this.timeoutsArray_.push(fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]);
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
@@ -394,6 +419,7 @@ export class PChecker {
         resolve({});
       }, this.timeout_);
     });
+    this.timeoutsArray_.push(timeoutPromise);
 
     const publicIPPromise = new Promise((resolve, reject) => {
       http.get({ host: "api.ipify.org", port: 80, path: "/" }, function (resp) {
@@ -406,19 +432,10 @@ export class PChecker {
     return Promise.race([publicIPPromise, timeoutPromise]);
   }
 
-  private destroy(): void {
-    this.spawnProcesses_.httpsProcess_.removeAllListeners();
-    this.spawnProcesses_.httpsProcess_.stdout.destroy();
-    this.spawnProcesses_.httpsProcess_.stderr.destroy();
-    this.spawnProcesses_.httpsProcess_.kill("SIGKILL");
-    this.spawnProcesses_.pingProcess_.removeAllListeners();
-    this.spawnProcesses_.pingProcess_.stdout.destroy();
-    this.spawnProcesses_.pingProcess_.stderr.destroy();
-    this.spawnProcesses_.pingProcess_.kill("SIGKILL");
-    this.spawnProcesses_.proxyProcess_.removeAllListeners();
-    this.spawnProcesses_.proxyProcess_.stdout.destroy();
-    this.spawnProcesses_.proxyProcess_.stderr.destroy();
-    this.spawnProcesses_.proxyProcess_.kill("SIGKILL");
+  private clearTimeouts() {
+    this.timeoutsArray_.forEach((to) => {
+      clearTimeout(to);
+    })
   }
 
   public async check(): Promise<any> {
@@ -436,8 +453,10 @@ export class PChecker {
     checker.proxyCheck = all[2];
     checker.googleCheck = all[3];
     checker.location = all[4];
-
-    this.destroy();
+    
+    // memory management
+    this.clearTimeouts();
+    this.spawnProcesses_.destroy();
 
     return checker;
   }
