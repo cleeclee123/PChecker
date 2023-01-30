@@ -19,7 +19,7 @@ import http from "http";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-class SpawnProcess {
+export class SpawnProcess {
   public httpsProcess_: ChildProcessWithoutNullStreams;
   public pingProcess_: ChildProcessWithoutNullStreams;
   public proxyProcess_: ChildProcessWithoutNullStreams;
@@ -77,6 +77,15 @@ class SpawnProcess {
       ) || ({} as ChildProcessWithoutNullStreams);
   }
 
+  public getProcessesUsage() {
+    pidusage(
+      [this.httpsProcess_.pid, this.pingProcess_.pid, this.proxyProcess_.pid],
+      (error, stats) => {
+        console.log(stats);
+      }
+    );
+  }
+
   public destroy(): void {
     this.httpsProcess_.removeAllListeners();
     this.httpsProcess_.stdout.destroy();
@@ -116,6 +125,7 @@ export class PChecker {
     this.port_ = port;
     this.timeout_ = Number(timeout);
     this.spawnProcesses_ = new SpawnProcess(this);
+    this.timeoutsArray_ = [];
   }
 
   // https check
@@ -250,11 +260,16 @@ export class PChecker {
                   String(pCheck.res[key as keyof JSON]) === String(publicIP)
                 ) {
                   pipCount++;
-                } 
-              } else if (Object.keys(publicIP).length === 0 && publicIP.constructor === Object) {
+                }
+              } else if (
+                Object.keys(publicIP).length === 0 &&
+                publicIP.constructor === Object
+              ) {
                 pCheck.anonymity = undefined;
               }
-              pipCount === 0 ? pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous : pCheck.anonymity = ENUM_ProxyAnonymity.Transparent;
+              pipCount === 0
+                ? (pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous)
+                : (pCheck.anonymity = ENUM_ProxyAnonymity.Transparent);
               toFlag.push(key);
             }
             pCheck.cause = toFlag;
@@ -344,8 +359,10 @@ export class PChecker {
         `https://www.google.com/`,
         fetchConfig(this.host_, this.port_, this.timeout_)["config"]
       );
-      
-      this.timeoutsArray_.push(fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]);
+
+      this.timeoutsArray_.push(
+        fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
+      );
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
@@ -367,8 +384,10 @@ export class PChecker {
         `http://ip-api.com/json/`,
         fetchConfig(this.host_, this.port_, this.timeout_)["config"]
       );
-    
-      this.timeoutsArray_.push(fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]);
+
+      this.timeoutsArray_.push(
+        fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
+      );
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
@@ -435,10 +454,27 @@ export class PChecker {
   private clearTimeouts() {
     this.timeoutsArray_.forEach((to) => {
       clearTimeout(to);
-    })
+    });
+  }
+
+  public async getProcessInfo() {
+    pidusage(
+      [
+        this.spawnProcesses_.httpsProcess_.pid,
+        this.spawnProcesses_.pingProcess_.pid,
+        this.spawnProcesses_.proxyProcess_.pid,
+      ],
+      (error, stats) => {
+        console.log(stats);
+      }
+    );
   }
 
   public async check(): Promise<any> {
+    pidusage(this.spawnProcesses_.httpsProcess_.pid, (error, stats) => {
+      console.log(stats);
+    });
+
     let all = await Promise.all([
       this.httpsCheck(),
       this.pingCheck(),
@@ -453,7 +489,7 @@ export class PChecker {
     checker.proxyCheck = all[2];
     checker.googleCheck = all[3];
     checker.location = all[4];
-    
+
     // memory management
     this.clearTimeouts();
     this.spawnProcesses_.destroy();
