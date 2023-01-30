@@ -92,10 +92,10 @@ export class PChecker {
   public spawnProcesses_: SpawnProcess;
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
 
-  constructor(host: string, port: string, timeout: number) {
+  constructor(host: string, port: string, timeout: string) {
     this.host_ = host;
     this.port_ = port;
-    this.timeout_ = timeout;
+    this.timeout_ = Number(timeout);
     this.spawnProcesses_ = new SpawnProcess(this);
   }
 
@@ -115,7 +115,7 @@ export class PChecker {
           // status 000, no response, curl over proxy
           if (data === "000") {
             httpsCheck.https = undefined;
-          } else if (Array.from(data)[0] !== "2") {
+          } else if (Array.from(httpsCheck.status)[0] !== "2") {
             httpsCheck.https = false;
           } else {
             httpsCheck.https = true;
@@ -205,7 +205,6 @@ export class PChecker {
   // proxy check
   public async proxyCheck() {
     let pCheck = {} as ProxyCheck;
-    let pHeaders = {} as ProxyHeaders;
     let statusCheck: boolean = false;
     return new Promise(async (resolve, reject) => {
       // stream standard output (response from proxy judge here)
@@ -218,20 +217,23 @@ export class PChecker {
 
         // Strip/analyze headers here
         try {
-          pHeaders.res = JSON.parse(await data.toString());
+          pCheck.res = JSON.parse(await data.toString());
           let publicIP: any = (await this.getPIP()) || {};
+          console.log({ pip: publicIP });
+          let pipCount = 0;
           let toFlag: any[] = [];
-          Object.keys(pHeaders.res).forEach(async (key) => {
+          Object.keys(pCheck.res).forEach(async (key) => {
             if (key in ENUM_FlaggedHeaderValues) {
               if (publicIP !== undefined || publicIP !== ({} as any)) {
-                if (String(pHeaders.res[key as keyof JSON]) === publicIP) {
-                  pCheck.anonymity = ENUM_ProxyAnonymity.Transparent;
-                } else {
-                  pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous;
-                }
-              } else {
+                if (
+                  String(pCheck.res[key as keyof JSON]) === String(publicIP)
+                ) {
+                  pipCount++;
+                } 
+              } else if (Object.keys(publicIP).length === 0 && publicIP.constructor === Object) {
                 pCheck.anonymity = undefined;
               }
+              pipCount === 0 ? pCheck.anonymity = ENUM_ProxyAnonymity.Anonymous : pCheck.anonymity = ENUM_ProxyAnonymity.Transparent;
               toFlag.push(key);
             }
             pCheck.cause = toFlag;
@@ -287,12 +289,11 @@ export class PChecker {
         }
       }
       try {
-        pHeaders.req = JSON.parse(JSON.stringify(reqHeaders));
+        pCheck.req = JSON.parse(JSON.stringify(reqHeaders));
       } catch (error) {
         console.log("json parse error");
-        pHeaders.req = reqHeaders;
+        pCheck.req = reqHeaders;
       }
-      pCheck.headers = pHeaders;
       rlStderr.close();
       rlStderr.removeAllListeners();
 
@@ -405,7 +406,22 @@ export class PChecker {
     return Promise.race([publicIPPromise, timeoutPromise]);
   }
 
-  public async check(): Promise<Checker> {
+  private destroy(): void {
+    this.spawnProcesses_.httpsProcess_.removeAllListeners();
+    this.spawnProcesses_.httpsProcess_.stdout.destroy();
+    this.spawnProcesses_.httpsProcess_.stderr.destroy();
+    this.spawnProcesses_.httpsProcess_.kill("SIGKILL");
+    this.spawnProcesses_.pingProcess_.removeAllListeners();
+    this.spawnProcesses_.pingProcess_.stdout.destroy();
+    this.spawnProcesses_.pingProcess_.stderr.destroy();
+    this.spawnProcesses_.pingProcess_.kill("SIGKILL");
+    this.spawnProcesses_.proxyProcess_.removeAllListeners();
+    this.spawnProcesses_.proxyProcess_.stdout.destroy();
+    this.spawnProcesses_.proxyProcess_.stderr.destroy();
+    this.spawnProcesses_.proxyProcess_.kill("SIGKILL");
+  }
+
+  public async check(): Promise<any> {
     let all = await Promise.all([
       this.httpsCheck(),
       this.pingCheck(),
@@ -421,16 +437,8 @@ export class PChecker {
     checker.googleCheck = all[3];
     checker.location = all[4];
 
-    this.spawnProcesses_.httpsProcess_.stdout.destroy();
-    this.spawnProcesses_.httpsProcess_.stderr.destroy();
-    this.spawnProcesses_.httpsProcess_.kill("SIGKILL");
-    this.spawnProcesses_.pingProcess_.stdout.destroy();
-    this.spawnProcesses_.pingProcess_.stderr.destroy();
-    this.spawnProcesses_.pingProcess_.kill("SIGKILL");
-    this.spawnProcesses_.proxyProcess_.stdout.destroy();
-    this.spawnProcesses_.proxyProcess_.stderr.destroy();
-    this.spawnProcesses_.proxyProcess_.kill("SIGKILL");
-    
+    this.destroy();
+
     return checker;
   }
 }

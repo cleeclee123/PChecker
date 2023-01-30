@@ -6,6 +6,8 @@ import HttpsProxyAgent from "https-proxy-agent";
 export type ProxyCheck = {
   proxyString?: string;
   headers?: ProxyHeaders;
+  res?: JSON;
+  req?: JSON;
   anonymity?: ENUM_ProxyAnonymity;
   type?: string[];
   cause?: string[];

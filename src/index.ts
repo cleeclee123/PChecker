@@ -34,7 +34,14 @@ import net from "net";
 
 
 console.time();
-let p1 = pChecks.proxyCheck("104.223.135.178", "10000", 5000);
-console.log(await p1)
+let p2 = new P.PChecker("47.57.184.128", "80", "5000");
+let check = await p2.check();
+console.log(check);
 console.timeEnd();
 process.kill(process.pid);
+
+// console.time();
+// let p1 = await pChecks.proxyCheck("204.2.218.145", "8080", 5000);
+// console.log(p1);
+// console.timeEnd();
+// process.kill(process.pid);
