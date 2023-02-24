@@ -18,88 +18,11 @@ import http from "http";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-export class SpawnProcess {
-  public httpsProcess_: ChildProcessWithoutNullStreams;
-  public pingProcess_: ChildProcessWithoutNullStreams;
-  public proxyProcess_: ChildProcessWithoutNullStreams;
-  public superThis_: PChecker;
-
-  constructor(superThis: PChecker) {
-    this.superThis_ = superThis;
-
-    this.httpsProcess_ =
-      spawn(
-        "curl",
-        [
-          "-s",
-          "-o",
-          "/dev/null",
-          "-w",
-          "%{http_code}",
-          "-p",
-          "-x",
-          `http://${this.superThis_.host_}:${this.superThis_.port_}`,
-          `${PChecker.kProxyJudgeURL}`,
-        ],
-        { timeout: superThis.timeout_ }
-      ) || ({} as ChildProcessWithoutNullStreams);
-
-    this.pingProcess_ =
-      spawn(
-        "curl",
-        [
-          "-s",
-          "-o",
-          "/dev/null",
-          "-w",
-          curlPingConfig,
-          "--proxy",
-          `http://${this.superThis_.host_}:${this.superThis_.port_}`,
-          `${PChecker.kProxyJudgeURL}`,
-        ],
-        { timeout: superThis.timeout_ }
-      ) || ({} as ChildProcessWithoutNullStreams);
-
-    this.proxyProcess_ =
-      spawn(
-        "curl",
-        [
-          "-s",
-          `-H`,
-          `Proxy-Connection:`,
-          "--proxy",
-          `http://${this.superThis_.host_}:${this.superThis_.port_}`,
-          `${PChecker.kProxyJudgeURL}`,
-          `-v`,
-        ],
-        { timeout: superThis.timeout_ }
-      ) || ({} as ChildProcessWithoutNullStreams);
-  }
-
-  public getProcessesUsage() {
-    pidusage(
-      [this.httpsProcess_.pid, this.pingProcess_.pid, this.proxyProcess_.pid],
-      (error, stats) => {
-        console.log(stats);
-      }
-    );
-  }
-
-  public destroy(): void {
-    this.httpsProcess_.removeAllListeners();
-    this.httpsProcess_.stdout.destroy();
-    this.httpsProcess_.stderr.destroy();
-    this.httpsProcess_.kill("SIGKILL");
-    this.pingProcess_.removeAllListeners();
-    this.pingProcess_.stdout.destroy();
-    this.pingProcess_.stderr.destroy();
-    this.pingProcess_.kill("SIGKILL");
-    this.proxyProcess_.removeAllListeners();
-    this.proxyProcess_.stdout.destroy();
-    this.proxyProcess_.stderr.destroy();
-    this.proxyProcess_.kill("SIGKILL");
-  }
-}
+type SpawnProcess = {
+  httpsProcess_: ChildProcessWithoutNullStreams;
+  pingProcess_: ChildProcessWithoutNullStreams;
+  proxyProcess_: ChildProcessWithoutNullStreams;
+};
 
 type Checker = {
   httpsCheck: HTTPSCheck;
@@ -107,6 +30,7 @@ type Checker = {
   proxyCheck: ProxyCheck;
   googleCheck: boolean;
   location: ProxyLocation;
+  spawnProcesses: SpawnProcess;
 };
 
 export class PChecker {
@@ -122,13 +46,60 @@ export class PChecker {
     this.host_ = host;
     this.port_ = port;
     this.timeout_ = Number(timeout);
-    this.spawnProcesses_ = new SpawnProcess(this);
     this.timeoutsArray_ = [];
+    this.spawnProcesses_ = {} as SpawnProcess;
+
+    this.spawnProcesses_.httpsProcess_ =
+      spawn(
+        "curl",
+        [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          "-p",
+          "-x",
+          `http://${this.host_}:${this.port_}`,
+          `${PChecker.kProxyJudgeURL}`,
+        ],
+        { timeout: this.timeout_ }
+      ) || ({} as ChildProcessWithoutNullStreams);
+
+    this.spawnProcesses_.pingProcess_ =
+      spawn(
+        "curl",
+        [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          curlPingConfig,
+          "--proxy",
+          `http://${this.host_}:${this.port_}`,
+          `${PChecker.kProxyJudgeURL}`,
+        ],
+        { timeout: this.timeout_ }
+      ) || ({} as ChildProcessWithoutNullStreams);
+
+    this.spawnProcesses_.proxyProcess_ =
+      spawn(
+        "curl",
+        [
+          "-s",
+          `-H`,
+          `Proxy-Connection:`,
+          "--proxy",
+          `http://${this.host_}:${this.port_}`,
+          `${PChecker.kProxyJudgeURL}`,
+          `-v`,
+        ],
+        { timeout: this.timeout_ }
+      ) || ({} as ChildProcessWithoutNullStreams);
   }
 
   // https check
   public async httpsCheck(): Promise<HTTPSCheck> {
-
     // timeout, race this condition with httpsCheck
     const timeoutPromise: Promise<HTTPSCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as HTTPSCheck), this.timeout_)
@@ -181,7 +152,6 @@ export class PChecker {
 
   // ping check
   public async pingCheck(): Promise<PingCheck> {
-
     // timeout, race this condition with httpsCheck
     const timeoutPromise: Promise<PingCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as PingCheck), this.timeout_)
@@ -194,7 +164,6 @@ export class PChecker {
     const pingCheckPromise: Promise<PingCheck> = new Promise(
       (resolve, reject) => {
         this.spawnProcesses_.pingProcess_.stdout.on("data", (data) => {
-          console.log(String(data));
           str += data.toString();
           try {
             let arr = str.split(",");
@@ -215,7 +184,7 @@ export class PChecker {
         });
 
         this.spawnProcesses_.pingProcess_.stderr.on("data", (data) => {
-          console.log(String(data));
+          // console.log(String(data));
         });
 
         this.spawnProcesses_.pingProcess_.on("exit", (code) => {
@@ -237,7 +206,7 @@ export class PChecker {
   public async proxyCheck() {
     let pCheck = {} as ProxyCheck;
     let statusCheck: boolean = false;
-    
+
     return new Promise(async (resolve, reject) => {
       // stream standard output (response from proxy judge here)
       this.spawnProcesses_.proxyProcess_.stdout.on("data", async (data) => {
@@ -249,12 +218,12 @@ export class PChecker {
 
         // Strip/analyze headers here
         try {
-          pCheck.res = JSON.parse(await data.toString());  
+          pCheck.res = JSON.parse(await data.toString());
           let publicIP: any = (await this.getPIP()) || {};
 
           let pipCount = 0;
           let toFlag: any[] = [];
-          
+
           Object.keys(pCheck.res).forEach(async (key) => {
             if (key in ENUM_FlaggedHeaderValues) {
               if (publicIP !== undefined || publicIP !== ({} as any)) {
@@ -396,12 +365,12 @@ export class PChecker {
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
-      
+
       if (response.status !== 200) {
         console.log("getLocation status error");
         return undefined;
       }
-      
+
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.indexOf("application/json") === -1) {
         console.log("response is not json");
@@ -432,7 +401,7 @@ export class PChecker {
         };
         status.tz = String(data["timezone"]);
         status.isp = String(data["isp"]);
-        
+
         return status;
       }
 
@@ -466,6 +435,21 @@ export class PChecker {
     this.timeoutsArray_.forEach((to) => {
       clearTimeout(to);
     });
+  }
+
+  public destroy(): void {
+    this.spawnProcesses_.httpsProcess_.removeAllListeners();
+    this.spawnProcesses_.httpsProcess_.stdout.destroy();
+    this.spawnProcesses_.httpsProcess_.stderr.destroy();
+    this.spawnProcesses_.httpsProcess_.kill("SIGKILL");
+    this.spawnProcesses_.pingProcess_.removeAllListeners();
+    this.spawnProcesses_.pingProcess_.stdout.destroy();
+    this.spawnProcesses_.pingProcess_.stderr.destroy();
+    this.spawnProcesses_.pingProcess_.kill("SIGKILL");
+    this.spawnProcesses_.proxyProcess_.removeAllListeners();
+    this.spawnProcesses_.proxyProcess_.stdout.destroy();
+    this.spawnProcesses_.proxyProcess_.stderr.destroy();
+    this.spawnProcesses_.proxyProcess_.kill("SIGKILL");
   }
 
   public async getProcessInfo() {
@@ -503,7 +487,7 @@ export class PChecker {
 
     // memory management
     this.clearTimeouts();
-    this.spawnProcesses_.destroy();
+    this.destroy();
 
     return checker;
   }
