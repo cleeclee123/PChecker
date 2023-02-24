@@ -99,8 +99,8 @@ def check(proxy):
         #print("connection error")
         None
             
-# proxylist = getProxiesList()
-proxylist = getProxiesGithub()
+proxylist = getProxiesList()
+# proxylist = getProxiesGithub()
 with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
     executor.map(check, proxylist)
 

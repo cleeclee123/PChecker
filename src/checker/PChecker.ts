@@ -466,9 +466,9 @@ export class PChecker {
   }
 
   public async check(): Promise<any> {
-    pidusage(this.spawnProcesses_.httpsProcess_.pid, (error, stats) => {
-      console.log(stats);
-    });
+    // pidusage(this.spawnProcesses_.httpsProcess_.pid, (error, stats) => {
+    //   console.log(stats);
+    // });
 
     let all = await Promise.all([
       this.httpsCheck(),

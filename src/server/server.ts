@@ -3,8 +3,6 @@ import ioserver, { Socket, Server } from "socket.io";
 import ioclient from "socket.io-client";
 import http from "http";
 import * as P from "../checker/PChecker.js";
-import fetch from "node-fetch";
-import axios from "axios";
 
 const app = express();
 const server = http.createServer(app);
@@ -16,34 +14,50 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.get("/check", (req: Request, res: Response) => {
+  let proxyHost = req.query.host;
+  let proxyPort = req.query.port;
+  let proxyTimeout = req.query.to;
+
   const socketclient = ioclient("http://localhost:" + port);
+
   socketclient.on("connect", async () => {
-    const proxyData = await getProxyCheckerInfo(socketclient);
+    const proxyData = await getProxyCheckerInfo(
+      socketclient,
+      String(proxyHost),
+      String(proxyPort),
+      String(proxyTimeout)
+    );
     res.json({ data: proxyData });
   });
 });
 
 io.on("connection", (socket: Socket) => {
   console.log("connected");
-  socket.on("fetch1", (data) => {
-    console.log("here");
+
+  socket.on("proxyCheckerCheck", (data) => {
+    console.log(data);
   });
 });
 
-const getProxyCheckerInfo = async (socketclient: any) => {
-  let pChecker = new P.PChecker("152.26.229.66", "9443", "5000");
+const getProxyCheckerInfo = (
+  socketclient: any,
+  proxyHost: any,
+  proxyPort: any,
+  proxyTimeout: any
+) => {
+  let pChecker = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+
   pChecker
     .check()
     .then((result) => {
-      socketclient.emit("fetch1", {
+      socketclient.emit("proxyCheckerCheck", {
         data: result.data,
       });
       return result.data;
     })
     .catch((error) => error.message);
 
-    return pChecker.check();
-
+  return pChecker.check();
 };
 
 server.listen(port, () => {
