@@ -1,4 +1,3 @@
-import * as pChecks from "./checker/proxy-checks.js";
 import * as P from "./checker/PChecker.js";
 import net from "net";
 
@@ -32,12 +31,13 @@ import net from "net";
 // console.timeEnd();
 // process.kill(process.pid);
 
-
 console.time();
 let p2 = new P.PChecker("152.26.229.66", "9443", "5000");
 let check = await p2.check();
 console.log(check);
 console.timeEnd();
+
+
 process.kill(process.pid);
 
 // console.time();

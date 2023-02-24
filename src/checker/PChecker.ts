@@ -6,7 +6,6 @@ import {
   ProxyCheck,
   HTTPSCheck,
   PingCheck,
-  ProxyHeaders,
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
   ProxyLocation,
@@ -110,7 +109,6 @@ type Checker = {
   location: ProxyLocation;
 };
 
-/** @todo: KILL ALL PROCESSES AFTER PROMISE.ALL in constructor  */
 export class PChecker {
   public host_: string;
   public port_: string;
@@ -130,6 +128,7 @@ export class PChecker {
 
   // https check
   public async httpsCheck(): Promise<HTTPSCheck> {
+
     // timeout, race this condition with httpsCheck
     const timeoutPromise: Promise<HTTPSCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as HTTPSCheck), this.timeout_)
@@ -182,6 +181,7 @@ export class PChecker {
 
   // ping check
   public async pingCheck(): Promise<PingCheck> {
+
     // timeout, race this condition with httpsCheck
     const timeoutPromise: Promise<PingCheck> = new Promise((resolve) =>
       setTimeout(() => resolve({} as PingCheck), this.timeout_)
@@ -237,6 +237,7 @@ export class PChecker {
   public async proxyCheck() {
     let pCheck = {} as ProxyCheck;
     let statusCheck: boolean = false;
+    
     return new Promise(async (resolve, reject) => {
       // stream standard output (response from proxy judge here)
       this.spawnProcesses_.proxyProcess_.stdout.on("data", async (data) => {
@@ -248,11 +249,12 @@ export class PChecker {
 
         // Strip/analyze headers here
         try {
-          pCheck.res = JSON.parse(await data.toString());
+          pCheck.res = JSON.parse(await data.toString());  
           let publicIP: any = (await this.getPIP()) || {};
-          console.log({ pip: publicIP });
+
           let pipCount = 0;
           let toFlag: any[] = [];
+          
           Object.keys(pCheck.res).forEach(async (key) => {
             if (key in ENUM_FlaggedHeaderValues) {
               if (publicIP !== undefined || publicIP !== ({} as any)) {
@@ -272,6 +274,7 @@ export class PChecker {
                 : (pCheck.anonymity = ENUM_ProxyAnonymity.Transparent);
               toFlag.push(key);
             }
+
             pCheck.cause = toFlag;
             if (pCheck.cause.length === 0) {
               pCheck.anonymity = ENUM_ProxyAnonymity.Elite;
@@ -291,6 +294,7 @@ export class PChecker {
       const rlStderr = readline.createInterface({
         input: this.spawnProcesses_.proxyProcess_.stderr,
       });
+
       for await (const line of rlStderr) {
         // console.log(line);
         lineCount++;
@@ -324,6 +328,7 @@ export class PChecker {
           reqHeaders[`${kv[0]}`] = kv[1];
         }
       }
+
       try {
         pCheck.req = JSON.parse(JSON.stringify(reqHeaders));
       } catch (error) {
@@ -391,14 +396,17 @@ export class PChecker {
       clearTimeout(
         fetchConfig(this.host_, this.port_, this.timeout_)["timeoutId"]
       );
+      
       if (response.status !== 200) {
         console.log("getLocation status error");
         return undefined;
       }
+      
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.indexOf("application/json") === -1) {
         console.log("response is not json");
       }
+
       const isAnonymousCallBack = async (): Promise<boolean> => {
         return this.getPIP().then((publicip) => {
           if (String(data["query"]) !== publicip) {
@@ -407,6 +415,7 @@ export class PChecker {
           return false;
         });
       };
+
       let data: any = await response.json();
       if (
         this.host_ === String(data["query"]) ||
@@ -423,8 +432,10 @@ export class PChecker {
         };
         status.tz = String(data["timezone"]);
         status.isp = String(data["isp"]);
+        
         return status;
       }
+
       return status;
     } catch (error) {
       console.log(`getLocation error: ${error}`);
