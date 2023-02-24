@@ -1,81 +1,51 @@
-import express, { Express, Request, Response } from "express";
-import { ChildProcessWithoutNullStreams, exec, spawn } from "child_process";
-import { curlPingConfig } from "../checker/constants.js";
-import * as PChecker from "../checker/PChecker.js";
-import dotenv from "dotenv";
+import express, { Request, Response } from "express";
+import ioserver, { Socket, Server } from "socket.io";
+import ioclient from "socket.io-client";
+import http from "http";
+import * as P from "../checker/PChecker.js";
+import fetch from "node-fetch";
+import axios from "axios";
 
-dotenv.config();
-
-const app: Express = express();
-const port = process.env.PORT;
+const app = express();
+const server = http.createServer(app);
+const port = 8181;
+const io = new Server(server);
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ hello: "hello" });
 });
 
-app.get("/path", function (req, res) {
-  // let child = spawn('curl', ['https://v2.jokeapi.dev/joke/Any?safe-mode']);
-
-  let host = req.query.host;
-  let port = req.query.port;
-  const kProxyJudgeURL: string = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
-
-  let child = spawn("curl", [
-    "-s",
-    "-o",
-    "/dev/null",
-    "-w",
-    curlPingConfig,
-    "--proxy",
-    `http://${host}:${port}`,
-    `${kProxyJudgeURL}`,
-  ]);
-
-  child.stdout.pipe(res);
-  // child.stderr.pipe(res);
+app.get("/check", (req: Request, res: Response) => {
+  const socketclient = ioclient("http://localhost:" + port);
+  socketclient.on("connect", async () => {
+    const proxyData = await getProxyCheckerInfo(socketclient);
+    res.json({ data: proxyData });
+  });
 });
 
-app.get("/checker", async (request: Request, response: Response) => {
-  let host = request.query.host;
-  let port = request.query.port;
-  //let timeout = request.query.to;
-  let timeout = "10000";
-
-  // const kProxyJudgeURL: string = `http://myproxyjudgeclee.software/${process.env.PJ_KEY}`;
-
-  // let { stdout, stderr } =
-  //   exec(
-  //     `curl -s -o /dev/null -w %{http_code} -p -x http://${host}:${port} ${kProxyJudgeURL}`,
-  //     { timeout: Number(timeout) }
-  //   ) || ({} as ChildProcessWithoutNullStreams);
-
-  // let pingProcess =
-  //   exec(
-  //     `curl -s -o /dev/null -w ${curlPingConfig} --proxy http://${host}:${port} ${kProxyJudgeURL}`,
-  //     { timeout: Number(timeout) }
-  //   ) || ({} as ChildProcessWithoutNullStreams);
-
-  // let proxyProcess =
-  //   exec(
-  //     `curl -s -H Proxy-Connection: --proxy http://${host}:${port} ${kProxyJudgeURL} -v`,
-  //     { timeout: Number(timeout) }
-  //   ) || ({} as ChildProcessWithoutNullStreams);
-
-  //console.log('stdout:', stdout);
-
-  response.send({});
+io.on("connection", (socket: Socket) => {
+  console.log("connected");
+  socket.on("fetch1", (data) => {
+    console.log("here");
+  });
 });
 
-// app.get("/checker1", async (request: Request, response: Response) => {
-//   let host = request.query.host;
-//   let port = request.query.port;
-//   // let timeout = request.query.to;
+const getProxyCheckerInfo = async (socketclient: any) => {
+  let pChecker = new P.PChecker("152.26.229.66", "9443", "5000");
+  pChecker
+    .check()
+    .then((result) => {
+      socketclient.emit("fetch1", {
+        data: result.data,
+      });
+      return result.data;
+    })
+    .catch((error) => error.message);
 
-//   const checker = await PF.getLocation(String(host), String(port), 100000);
-//   console.log(checker);
-//   response.send(checker);
-// });
+    return pChecker.check();
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+};
+
+server.listen(port, () => {
+  console.log("Running at localhost:8181");
 });

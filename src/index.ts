@@ -35,9 +35,8 @@ console.time();
 let p2 = new P.PChecker("152.26.229.66", "9443", "5000");
 let check = await p2.check();
 console.log(check);
+
 console.timeEnd();
-
-
 process.kill(process.pid);
 
 // console.time();
