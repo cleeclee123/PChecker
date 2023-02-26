@@ -431,12 +431,32 @@ export class PChecker {
     return Promise.race([publicIPPromise, timeoutPromise]);
   }
 
+  // just logs info
+  private getProcessInfo() {
+    pidusage(this.spawnProcesses_.httpsProcess_.pid, (error, stats) => {
+      console.log(stats);
+      console.log(error);
+    });
+    
+    pidusage(this.spawnProcesses_.pingProcess_.pid, (error, stats) => {
+      console.log(stats);
+      console.log(error);
+    });
+    
+    pidusage(this.spawnProcesses_.proxyProcess_.pid, (error, stats) => {
+      console.log(stats);
+      console.log(error);
+    });
+  }
+  
+  // mem management
   private clearTimeouts() {
     this.timeoutsArray_.forEach((to) => {
       clearTimeout(to);
     });
   }
-
+  
+  // mem management
   public destroy(): void {
     this.spawnProcesses_.httpsProcess_.removeAllListeners();
     this.spawnProcesses_.httpsProcess_.stdout.destroy();
@@ -452,23 +472,9 @@ export class PChecker {
     this.spawnProcesses_.proxyProcess_.kill("SIGKILL");
   }
 
-  public async getProcessInfo() {
-    pidusage(
-      [
-        this.spawnProcesses_.httpsProcess_.pid,
-        this.spawnProcesses_.pingProcess_.pid,
-        this.spawnProcesses_.proxyProcess_.pid,
-      ],
-      (error, stats) => {
-        console.log(stats);
-      }
-    );
-  }
-
   public async check(): Promise<any> {
-    // pidusage(this.spawnProcesses_.httpsProcess_.pid, (error, stats) => {
-    //   console.log(stats);
-    // });
+    
+    // this.getProcessInfo();
 
     let all = await Promise.all([
       this.httpsCheck(),

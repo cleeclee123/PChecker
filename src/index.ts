@@ -34,7 +34,10 @@ import net from "net";
 console.time();
 let p2 = new P.PChecker("1.214.62.71", "8000", "5000");
 let check = await p2.check();
+
+
 console.log(check);
+
 
 console.timeEnd();
 process.kill(process.pid);
