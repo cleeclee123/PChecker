@@ -18,6 +18,27 @@ app.get("/check", (req: Request, res: Response) => {
   let proxyPort = req.query.port;
   let proxyTimeout = req.query.to;
 
+  function validIPaddress(ipaddress: string) {
+    if (
+      /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
+        ipaddress
+      )
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  if (!validIPaddress(`${proxyHost}`)) {
+    res.send({ data: "bad ip address"});
+  }
+  
+  const kMaxPortNumber = 65535;
+  const kMinPortNumber = 0;
+  if (Number(proxyPort) > kMaxPortNumber || Number(proxyPort) < kMinPortNumber) {
+    res.send({ data: "bad port"});
+  }
+
   const socketclient = ioclient("http://localhost:" + port);
 
   socketclient.on("connect", async () => {
