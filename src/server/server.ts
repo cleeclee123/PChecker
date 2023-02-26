@@ -1,13 +1,65 @@
 import express, { Request, Response } from "express";
-import ioserver, { Socket, Server } from "socket.io";
+import { Socket, Server } from "socket.io";
 import ioclient from "socket.io-client";
 import http from "http";
 import * as P from "../checker/PChecker.js";
+import { Schema, model, connect } from "mongoose";
 
 const app = express();
 const server = http.createServer(app);
 const port = 8181;
 const io = new Server(server);
+
+// connect to mongodb
+const DB_URI = process.env.DB_URI;
+await connect(DB_URI);
+
+interface IServerKPIs {
+  server: string;
+  uptime: string;
+  avgPing: string;
+  count: string;
+}
+
+// proxy server kpis schema
+const serverKPISchema = new Schema<IServerKPIs>(
+  {
+    server: {
+      type: String,
+      required: true,
+    },
+    uptime: {
+      type: String,
+      required: true,
+    },
+    avgPing: {
+      type: String,
+      required: true,
+    },
+    count: {
+      type: String,
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+// create model
+const ProxyServerKPIs = model<IServerKPIs>("KPIs", serverKPISchema);
+
+// add new proxy server kpi
+const addProxyServerKPI = async (host: any, port: any) => {
+  const kpis = new ProxyServerKPIs({
+    server: `${host}:${port}`,
+    uptime: `0`,
+    avgPing: `0`,
+    count: `1`
+  });
+  
+  await kpis.save();
+};
+
+// get proxy server kpi
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ hello: "hello" });
@@ -30,13 +82,16 @@ app.get("/check", (req: Request, res: Response) => {
   }
 
   if (!validIPaddress(`${proxyHost}`)) {
-    res.send({ data: "bad ip address"});
+    res.send({ data: "bad ip address" });
   }
-  
+
   const kMaxPortNumber = 65535;
   const kMinPortNumber = 0;
-  if (Number(proxyPort) > kMaxPortNumber || Number(proxyPort) < kMinPortNumber) {
-    res.send({ data: "bad port"});
+  if (
+    Number(proxyPort) > kMaxPortNumber ||
+    Number(proxyPort) < kMinPortNumber
+  ) {
+    res.send({ data: "bad port" });
   }
 
   const socketclient = ioclient("http://localhost:" + port);
