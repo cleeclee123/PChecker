@@ -437,35 +437,37 @@ export class PChecker {
       console.log(stats);
       console.log(error);
     });
-    
+
     pidusage(this.spawnProcesses_.pingProcess_.pid, (error, stats) => {
       console.log(stats);
       console.log(error);
     });
-    
+
     pidusage(this.spawnProcesses_.proxyProcess_.pid, (error, stats) => {
       console.log(stats);
       console.log(error);
     });
   }
-  
+
   // mem management
   private clearTimeouts() {
-    this.timeoutsArray_.forEach((to) => {
-      clearTimeout(to);
+    this.timeoutsArray_.forEach(async (to) => {
+      clearTimeout(await to);
     });
   }
-  
+
   // mem management
   public destroy(): void {
     this.spawnProcesses_.httpsProcess_.removeAllListeners();
     this.spawnProcesses_.httpsProcess_.stdout.destroy();
     this.spawnProcesses_.httpsProcess_.stderr.destroy();
     this.spawnProcesses_.httpsProcess_.kill("SIGKILL");
+
     this.spawnProcesses_.pingProcess_.removeAllListeners();
     this.spawnProcesses_.pingProcess_.stdout.destroy();
     this.spawnProcesses_.pingProcess_.stderr.destroy();
     this.spawnProcesses_.pingProcess_.kill("SIGKILL");
+
     this.spawnProcesses_.proxyProcess_.removeAllListeners();
     this.spawnProcesses_.proxyProcess_.stdout.destroy();
     this.spawnProcesses_.proxyProcess_.stderr.destroy();
@@ -473,7 +475,6 @@ export class PChecker {
   }
 
   public async check(): Promise<any> {
-    
     // this.getProcessInfo();
 
     let all = await Promise.all([
