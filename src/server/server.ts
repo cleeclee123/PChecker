@@ -11,8 +11,8 @@ const port = 8181;
 const io = new Server(server);
 
 // connect to mongodb
-const DB_URI = process.env.DB_URI;
-await connect(DB_URI);
+// const DB_URI = process.env.DB_URI;
+// await connect(DB_URI);
 
 interface IServerKPIs {
   server: string;
@@ -53,9 +53,9 @@ const addProxyServerKPI = async (host: any, port: any) => {
     server: `${host}:${port}`,
     uptime: `0`,
     avgPing: `0`,
-    count: `1`
+    count: `1`,
   });
-  
+
   await kpis.save();
 };
 
@@ -66,45 +66,54 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.get("/check", (req: Request, res: Response) => {
-  let proxyHost = req.query.host;
-  let proxyPort = req.query.port;
-  let proxyTimeout = req.query.to;
+  try {
+    let proxyHost = req.query.host;
+    let proxyPort = req.query.port;
+    let proxyTimeout = req.query.to;
 
-  function validIPaddress(ipaddress: string) {
-    if (
-      /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
-        ipaddress
-      )
-    ) {
-      return true;
+    function validIPaddress(ipaddress: string) {
+      if (
+        /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
+          ipaddress
+        )
+      ) {
+        return true;
+      }
+      return false;
     }
-    return false;
+
+    if (!validIPaddress(`${proxyHost}`)) {
+      res.send({ data: "bad ip address" });
+      return;
+    }
+
+    const kMaxPortNumber = 65535;
+    const kMinPortNumber = 0;
+    if (
+      Number(proxyPort) > kMaxPortNumber ||
+      Number(proxyPort) < kMinPortNumber
+    ) {
+      res.send({ data: "bad port" });
+      return;
+    }
+
+    const socketclient = ioclient("http://localhost:" + port);
+
+    socketclient.on("connect", async () => {
+      const proxyData = await getProxyCheckerInfo(
+        socketclient,
+        String(proxyHost),
+        String(proxyPort),
+        String(proxyTimeout)
+      );
+      res.json({ data: proxyData });
+      return;
+    });
+  } catch (error) {
+    console.log(error);
+    res.send({ data: "something is fucked" });
+    return;
   }
-
-  if (!validIPaddress(`${proxyHost}`)) {
-    res.send({ data: "bad ip address" });
-  }
-
-  const kMaxPortNumber = 65535;
-  const kMinPortNumber = 0;
-  if (
-    Number(proxyPort) > kMaxPortNumber ||
-    Number(proxyPort) < kMinPortNumber
-  ) {
-    res.send({ data: "bad port" });
-  }
-
-  const socketclient = ioclient("http://localhost:" + port);
-
-  socketclient.on("connect", async () => {
-    const proxyData = await getProxyCheckerInfo(
-      socketclient,
-      String(proxyHost),
-      String(proxyPort),
-      String(proxyTimeout)
-    );
-    res.json({ data: proxyData });
-  });
 });
 
 io.on("connection", (socket: Socket) => {
