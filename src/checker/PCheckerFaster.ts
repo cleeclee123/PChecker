@@ -157,6 +157,7 @@ export class PCheckerFast {
   /**
    * @method: checkHTTPSSuport()
    * @returns 
+   * reference: https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/agent.ts#L192
    * a "mock" HTTP request will tunnel through proxy server by attempting to issue a HTTP CONNECT method to the proxy server
    * just need a boolean value to see if proxy supports https, no need to upgrade incoming requests to tls once/if connect method goes through
    */
