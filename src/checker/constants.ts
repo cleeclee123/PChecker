@@ -96,6 +96,12 @@ export enum ENUM_ProxyAnonymity {
   Elite = "Elite",
 }
 
+export enum ENUM_ERRORS {
+  StatusCodeError = "Status Code Error",
+  ConnectionError = "Connection Error",
+  JSONParseError = "JSON Parse Error"
+}
+
 /* CONSTANTS */
 
 export const kUserAgents: string[] = [

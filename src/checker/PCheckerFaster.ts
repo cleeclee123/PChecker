@@ -2,7 +2,11 @@
 
 import http from "http";
 import https from "https";
-import { ENUM_ProxyAnonymity, ENUM_FlaggedHeaderValues } from "./constants.js";
+import {
+  ENUM_ProxyAnonymity,
+  ENUM_FlaggedHeaderValues,
+  ENUM_ERRORS,
+} from "./constants.js";
 import net from "net";
 import os from "os";
 
@@ -11,6 +15,10 @@ type HTTPOptions = {
   port: number;
   method: string;
   path: string;
+};
+
+type Error = {
+  error: ENUM_ERRORS;
 };
 
 type ProxyInfo = {
@@ -51,75 +59,86 @@ export class PCheckerFast {
     };
   }
 
-  public async httpRequest(): Promise<ProxyInfo> {
+  public async httpRequest(): Promise<ProxyInfo | Error> {
     const timeoutPromise: Promise<ProxyInfo> = new Promise((resolve) =>
-      setTimeout(() => resolve({} as ProxyInfo), this.timeout_)
+    setTimeout(() => resolve({} as ProxyInfo), this.timeout_)
     );
     this.timeoutsArray_.push(timeoutPromise);
-
-    const response: Promise<ProxyInfo> = new Promise((resolve, reject) => {
-      let startTime = new Date().getTime();
-      http.get(this.options_, (res) => {
+    
+    const response: Promise<ProxyInfo | Error> = new Promise(
+      (resolve, reject) => {
         let httpRequest = {} as ProxyInfo;
-
-        let body = [] as any[];
-        res.on("data", (chunk) => {
-          body.push(chunk);
-        });
-
-        res.on("close", () => {
-          httpRequest.responseTime = new Date().getTime() - startTime;
-        });
-
-        res.on("end", () => {
-          try {
-            httpRequest.header = JSON.parse(Buffer.concat(body).toString());
-
-            let pipCount = 0;
-            let toFlag: any[] = [];
-            Object.keys(httpRequest.header).forEach(async (key) => {
-              if (key in ENUM_FlaggedHeaderValues) {
-                if (
-                  this.publicIPAddress_ !== undefined ||
-                  this.publicIPAddress_ !== ({} as any)
-                ) {
-                  if (
-                    String(httpRequest.header[key as keyof JSON]) ===
-                    String(this.publicIPAddress_)
-                  ) {
-                    pipCount++;
-                  }
-                } else if (
-                  Object.keys(this.publicIPAddress_).length === 0 &&
-                  this.publicIPAddress_.constructor === Object
-                ) {
-                  httpRequest.anonymity = undefined;
-                }
-                pipCount === 0
-                  ? (httpRequest.anonymity = ENUM_ProxyAnonymity.Anonymous)
-                  : (httpRequest.anonymity = ENUM_ProxyAnonymity.Transparent);
-                toFlag.push(key);
-              }
-
-              httpRequest.cause = toFlag;
-              if (httpRequest.cause.length === 0) {
-                httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
-              }
-            });
-          } catch (error) {
-            httpRequest.header = {} as JSON;
-            console.log(`httpRequest JSON Parse Error: ${error}`);
+        let errorObject = {} as Error;
+        let startTime = new Date().getTime();
+        
+        http.get(this.options_, (res) => {
+          if (res.statusCode !== 200) {
+            console.log(`httpRequest Bad Status Code`);
+            errorObject.error = ENUM_ERRORS.StatusCodeError;
+            resolve(errorObject);
           }
 
-          resolve(httpRequest);
-        });
+          let body = [] as any[];
+          res.on("data", (chunk) => {
+            body.push(chunk);
+          });
 
-        res.on("error", (error) => {
-          resolve({} as ProxyInfo);
-          console.log(`httpRequest ON-Error: ${error}`);
+          res.on("close", () => {
+            httpRequest.responseTime = new Date().getTime() - startTime;
+          });
+
+          res.on("end", () => {
+            try {
+              httpRequest.header = JSON.parse(Buffer.concat(body).toString());
+
+              let pipCount = 0;
+              let toFlag: any[] = [];
+              Object.keys(httpRequest.header).forEach(async (key) => {
+                if (key in ENUM_FlaggedHeaderValues) {
+                  if (
+                    this.publicIPAddress_ !== undefined ||
+                    this.publicIPAddress_ !== ({} as any)
+                  ) {
+                    if (
+                      String(httpRequest.header[key as keyof JSON]) ===
+                      String(this.publicIPAddress_)
+                    ) {
+                      pipCount++;
+                    }
+                  } else if (
+                    Object.keys(this.publicIPAddress_).length === 0 &&
+                    this.publicIPAddress_.constructor === Object
+                  ) {
+                    httpRequest.anonymity = undefined;
+                  }
+                  pipCount === 0
+                    ? (httpRequest.anonymity = ENUM_ProxyAnonymity.Anonymous)
+                    : (httpRequest.anonymity = ENUM_ProxyAnonymity.Transparent);
+                  toFlag.push(key);
+                }
+
+                httpRequest.cause = toFlag;
+                if (httpRequest.cause.length === 0) {
+                  httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
+                }
+              });
+            } catch (error) {
+              console.log(`httpRequest JSON Parse Error: ${error}`);
+              errorObject.error = ENUM_ERRORS.JSONParseError;
+              resolve(errorObject);
+            }
+            
+            resolve(httpRequest);
+          });
+          
+          res.on("error", (error) => {
+            console.log(`httpRequest ON-Error: ${error}`);
+            errorObject.error = ENUM_ERRORS.ConnectionError;
+            resolve(errorObject);
+          });
         });
-      });
-    });
+      }
+    );
 
     // race between timeout and httpsCheck
     try {
@@ -139,7 +158,7 @@ export class PCheckerFast {
 
   public async check() {
     let res = await this.httpRequest();
-
+    
     this.clearTimeouts();
 
     return res;
