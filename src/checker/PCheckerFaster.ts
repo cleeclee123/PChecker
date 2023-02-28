@@ -59,18 +59,23 @@ export class PCheckerFast {
     };
   }
 
-  public async httpRequest(): Promise<ProxyInfo | Error> {
+  /**
+   * @method: checkHTTP()
+   * @returns Promise<ProxyInfo | Error>
+   * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
+   */
+  public async checkHTTPProxy(): Promise<ProxyInfo | Error> {
     const timeoutPromise: Promise<ProxyInfo> = new Promise((resolve) =>
-    setTimeout(() => resolve({} as ProxyInfo), this.timeout_)
+      setTimeout(() => resolve({} as ProxyInfo), this.timeout_)
     );
     this.timeoutsArray_.push(timeoutPromise);
-    
+
     const response: Promise<ProxyInfo | Error> = new Promise(
       (resolve, reject) => {
         let httpRequest = {} as ProxyInfo;
         let errorObject = {} as Error;
         let startTime = new Date().getTime();
-        
+
         http.get(this.options_, (res) => {
           if (res.statusCode !== 200) {
             console.log(`httpRequest Bad Status Code`);
@@ -127,10 +132,10 @@ export class PCheckerFast {
               errorObject.error = ENUM_ERRORS.JSONParseError;
               resolve(errorObject);
             }
-            
+
             resolve(httpRequest);
           });
-          
+
           res.on("error", (error) => {
             console.log(`httpRequest ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.ConnectionError;
@@ -149,6 +154,16 @@ export class PCheckerFast {
     }
   }
 
+  /**
+   * @method: checkHTTPSSuport()
+   * @returns 
+   * a "mock" HTTP request will tunnel through proxy server by attempting to issue a HTTP CONNECT method to the proxy server
+   * just need a boolean value to see if proxy supports https, no need to upgrade incoming requests to tls once/if connect method goes through
+   */
+  public async checkHTTPSSuport() {
+
+  }
+
   // mem management
   private clearTimeouts() {
     this.timeoutsArray_.forEach(async (to) => {
@@ -157,8 +172,8 @@ export class PCheckerFast {
   }
 
   public async check() {
-    let res = await this.httpRequest();
-    
+    let res = await this.checkHTTPProxy();
+
     this.clearTimeouts();
 
     return res;
