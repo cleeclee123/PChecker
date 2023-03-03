@@ -1,14 +1,13 @@
 "use-strict";
 
 import http from "http";
-import https from "https";
 import {
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
   ENUM_ERRORS,
 } from "./constants.js";
 import net from "net";
-import os from "os";
+import tls from "tls";
 
 type HTTPOptions = {
   host: string;
@@ -80,6 +79,7 @@ export class PCheckerFast {
           if (res.statusCode !== 200) {
             console.log(`httpRequest Bad Status Code`);
             errorObject.error = ENUM_ERRORS.StatusCodeError;
+
             resolve(errorObject);
           }
 
@@ -139,6 +139,7 @@ export class PCheckerFast {
           res.on("error", (error) => {
             console.log(`httpRequest ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.ConnectionError;
+
             resolve(errorObject);
           });
         });
@@ -149,21 +150,19 @@ export class PCheckerFast {
     try {
       return await Promise.race([timeoutPromise, response]);
     } catch (error) {
-      console.log(`httpsCheck error in race: ${error}`);
-      return {} as ProxyInfo;
+      console.log(`httpRequest PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PromiseRaceError } as Error;
     }
   }
 
   /**
    * @method: checkHTTPSSuport()
-   * @returns 
+   * @returns
    * reference: https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/agent.ts#L192
    * a "mock" HTTP request will tunnel through proxy server by attempting to issue a HTTP CONNECT method to the proxy server
    * just need a boolean value to see if proxy supports https, no need to upgrade incoming requests to tls once/if connect method goes through
    */
-  public async checkHTTPSSuport() {
-
-  }
+  public async checkHTTPSSuport() {}
 
   // mem management
   private clearTimeouts() {

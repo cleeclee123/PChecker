@@ -99,7 +99,8 @@ export enum ENUM_ProxyAnonymity {
 export enum ENUM_ERRORS {
   StatusCodeError = "Status Code Error",
   ConnectionError = "Connection Error",
-  JSONParseError = "JSON Parse Error"
+  JSONParseError = "JSON Parse Error",
+  PromiseRaceError = "PromiseRaceError"
 }
 
 /* CONSTANTS */
