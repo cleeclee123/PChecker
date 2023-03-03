@@ -37,6 +37,8 @@ export class PCheckerFast {
   private timeoutsArray_: Array<any>;
   private auth_: string;
 
+  // mem management
+
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
 
   constructor(
@@ -53,43 +55,14 @@ export class PCheckerFast {
     this.options_ = {} as ProxyOptions;
     this.timeoutsArray_ = [];
 
-    // this is poop poop and ugly
-    if (publicIPAddress !== undefined) {
-      this.publicIPAddress_ = publicIPAddress; // optional parameter, getPIP() will be called if not passed in, readiness design pattern: puttnig a promise in the object
-    }
-    if (publicIPAddress === undefined) {
-      const timeoutPromise: Promise<string> = this.createTimeout();
-      const pipPromise: Promise<string | ProxyError> = new Promise(
-        (resolve, reject) => {
-          http.get({ host: "api.ipify.org", port: 80, path: "/" }, (resp) => {
-            resp.on("data", (ip) => {
-              resolve(String(ip));
-            });
-
-            resp.on("error", (err) => {
-              console.log(`pip constructor ON-Error: ${err}`);
-              resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
-            });
-          });
-        }
-      );
-
-      // abiding readiness pattern, returning a promise
-      // not awaiting promise here will need to handle this in run()
-      try {
-        this.publicIPAddress_ = Promise.race([pipPromise, timeoutPromise]);
-      } catch (error) {
-        this.publicIPAddress_ = new Promise((resolve) => {
-          resolve({ error: ENUM_ERRORS.PromiseRaceError } as ProxyError);
-        });
-      }
-    }
-
-    // support for auth
-    this.auth_ =
+    publicIPAddress !== undefined
+      ? (this.publicIPAddress_ = publicIPAddress)
+      : (this.publicIPAddress_ = this.getPublicIPPromise());
+    
+      this.auth_ =
       "Basic " + Buffer.from(username + ":" + password).toString("base64");
-
-    this.options_ = {
+    
+      this.options_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
@@ -174,6 +147,8 @@ export class PCheckerFast {
               resolve(errorObject);
             }
 
+            res.destroy();
+            res.resume;
             resolve(httpRequest);
           });
 
@@ -193,6 +168,34 @@ export class PCheckerFast {
     } catch (error) {
       console.log(`httpRequest PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+    }
+  }
+
+  public getPublicIPPromise(): Promise<string | ProxyError> {
+    const timeoutPromise: Promise<string> = this.createTimeout();
+    const pipPromise: Promise<string | ProxyError> = new Promise(
+      (resolve, reject) => {
+        http.get({ host: "api.ipify.org", port: 80, path: "/" }, (resp) => {
+          resp.on("data", (ip) => {
+            resolve(String(ip));
+          });
+
+          resp.on("error", (err) => {
+            console.log(`pip constructor ON-Error: ${err}`);
+            return { error: ENUM_ERRORS.ConnectionError } as ProxyError;
+          });
+        });
+      }
+    );
+
+    // abiding readiness pattern, returning a promise
+    // not awaiting promise here will need to handle this in run()
+    try {
+      return Promise.race([pipPromise, timeoutPromise]);
+    } catch (error) {
+      this.publicIPAddress_ = new Promise((resolve) => {
+        resolve({ error: ENUM_ERRORS.PromiseRaceError } as ProxyError);
+      });
     }
   }
 
