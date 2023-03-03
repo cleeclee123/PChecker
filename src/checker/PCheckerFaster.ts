@@ -35,12 +35,6 @@ export class PCheckerFast {
   public options_: ProxyOptions;
   private publicIPAddress_: string | Promise<string | ProxyError>;
   private auth_: string;
-
-  // mem management
-  private proxyRequest_: http.ClientRequest;
-  private publicIPRequest_: http.ClientRequest;
-  private proxyResponse_: http.IncomingMessage;
-  private publicIPResponse_: http.IncomingMessage;
   private timeoutsArray_: Array<Promise<any>>;
 
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
@@ -75,12 +69,6 @@ export class PCheckerFast {
         "Proxy-Authorization": this.auth_,
       }, // todo: seperate headers from options for more control on what we are sending to proxy server
     };
-
-    // init http response objects
-    this.proxyRequest_ = {} as http.ClientRequest;
-    this.publicIPRequest_ = {} as http.ClientRequest;
-    this.proxyResponse_ = {} as http.IncomingMessage;
-    this.publicIPResponse_ = {} as http.IncomingMessage;
   }
 
   /**
@@ -99,8 +87,7 @@ export class PCheckerFast {
         let errorObject = {} as ProxyError;
         let startTime = new Date().getTime();
 
-        this.proxyRequest_ = http.get(this.options_, (res) => {
-          this.proxyResponse_ = res;
+        http.get(this.options_, (res) => {
           if (res.statusCode !== 200) {
             console.log(`httpRequest Bad Status Code`);
             errorObject.error = ENUM_ERRORS.StatusCodeError;
@@ -115,6 +102,7 @@ export class PCheckerFast {
 
           res.on("close", () => {
             httpRequest.responseTime = new Date().getTime() - startTime;
+            res.destroy();
           });
 
           res.on("end", () => {
@@ -153,8 +141,10 @@ export class PCheckerFast {
                 }
               });
             } catch (error) {
+              res.destroy();
               console.log(`httpRequest JSON Parse Error: ${error}`);
               errorObject.error = ENUM_ERRORS.JSONParseError;
+
               resolve(errorObject);
             }
 
@@ -162,6 +152,7 @@ export class PCheckerFast {
           });
 
           res.on("error", (error) => {
+            res.destroy();
             console.log(`httpRequest ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.ConnectionError;
 
@@ -184,20 +175,23 @@ export class PCheckerFast {
     const timeoutPromise: Promise<string> = this.createTimeout();
     const pipPromise: Promise<string | ProxyError> = new Promise(
       (resolve, reject) => {
-        this.publicIPRequest_ = http.get(
-          { host: "api.ipify.org", port: 80, path: "/" },
-          (resp) => {
-            this.publicIPResponse_ = resp;
-            resp.on("data", (ip) => {
-              resolve(String(ip));
-            });
+        http.get({ host: "api.ipify.org", port: 80, path: "/" }, (resp) => {
+          resp.on("data", (ip) => {
+            resolve(String(ip));
+          });
 
-            resp.on("error", (err) => {
-              console.log(`pip constructor ON-Error: ${err}`);
-              return { error: ENUM_ERRORS.ConnectionError } as ProxyError;
-            });
-          }
-        );
+          // clear
+          resp.on("close", () => {
+            resp.destroy();
+          });
+          
+          resp.on("error", (err) => {
+            resp.destroy();
+            console.log(`pip constructor ON-Error: ${err}`);
+
+            return { error: ENUM_ERRORS.ConnectionError } as ProxyError;
+          });
+        });
       }
     );
 
@@ -230,10 +224,10 @@ export class PCheckerFast {
     });
 
     // http clear
-    this.proxyRequest_.end();
-    this.publicIPRequest_.end();
-    this.proxyResponse_.destroy();
-    this.publicIPResponse_.destroy();
+    //this.proxyRequest_ on("close", () => this.proxyRequest_.destroy());
+    // this.proxyRequest_. on("error", () => this.proxyRequest_.destroy());
+    // this.publicIPRequest_. on("close", () => this.publicIPRequest_.destroy());
+    // this.publicIPRequest_. on("error", () => this.publicIPRequest_.destroy());
   }
 
   public async check() {
