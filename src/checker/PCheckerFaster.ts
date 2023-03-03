@@ -61,18 +61,16 @@ export class PCheckerFast {
       const timeoutPromise: Promise<string> = this.createTimeout();
       const pipPromise: Promise<string | ProxyError> = new Promise(
         (resolve, reject) => {
-          http.get(
-            { host: "api.ipify.org", port: 80, path: "/" },
-            function (resp) {
-              resp.on("data", (ip) => {
-                resolve(String(ip));
-              });
+          http.get({ host: "api.ipify.org", port: 80, path: "/" }, (resp) => {
+            resp.on("data", (ip) => {
+              resolve(String(ip));
+            });
 
-              resp.on("error", (err) => {
-                resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
-              });
-            }
-          );
+            resp.on("error", (err) => {
+              console.log(`pip constructor ON-Error: ${err}`);
+              resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
+            });
+          });
         }
       );
 
@@ -110,7 +108,7 @@ export class PCheckerFast {
   public async checkHTTPProxy(): Promise<ProxyInfo | ProxyError> {
     const timeoutPromise: Promise<ProxyInfo> = this.createTimeout();
     // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
-    let resolvedPIP = await this.publicIPAddress_; 
+    let resolvedPIP = await this.publicIPAddress_;
 
     const response: Promise<ProxyInfo | ProxyError> = new Promise(
       (resolve, reject) => {
