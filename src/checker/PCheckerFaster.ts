@@ -9,11 +9,12 @@ import {
 import net from "net";
 import tls from "tls";
 
-type HTTPOptions = {
+type ProxyOptions = {
   host: string;
   port: number;
   method: string;
   path: string;
+  headers?: any;
 };
 
 type Error = {
@@ -31,9 +32,10 @@ export class PCheckerFast {
   public host_: string;
   public port_: string;
   public timeout_: number;
-  public options_: HTTPOptions;
+  public options_: ProxyOptions;
   private publicIPAddress_: string;
   private timeoutsArray_: Array<any>;
+  private auth_: string;
 
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
 
@@ -41,20 +43,27 @@ export class PCheckerFast {
     host: string,
     port: string,
     timeout: string,
-    publicIPAddress: string
+    publicIPAddress: string, // todo: make this optional. If not passed, get client ip with getPIP
+    username?: string,
+    password?: string
   ) {
     this.host_ = host;
     this.port_ = port;
     this.timeout_ = Number(timeout);
-    this.options_ = {} as HTTPOptions;
+    this.options_ = {} as ProxyOptions;
     this.timeoutsArray_ = [];
     this.publicIPAddress_ = publicIPAddress;
+    this.auth_ =
+      "Basic " + Buffer.from(username + ":" + password).toString("base64");
 
     this.options_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
       path: PCheckerFast.kProxyJudgeURL,
+      headers: {
+        "Proxy-Authorization": this.auth_,
+      },
     };
   }
 
@@ -154,15 +163,6 @@ export class PCheckerFast {
       return { error: ENUM_ERRORS.PromiseRaceError } as Error;
     }
   }
-
-  /**
-   * @method: checkHTTPSSuport()
-   * @returns
-   * reference: https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/agent.ts#L192
-   * a "mock" HTTP request will tunnel through proxy server by attempting to issue a HTTP CONNECT method to the proxy server
-   * just need a boolean value to see if proxy supports https, no need to upgrade incoming requests to tls once/if connect method goes through
-   */
-  public async checkHTTPSSuport() {}
 
   // mem management
   private clearTimeouts() {
