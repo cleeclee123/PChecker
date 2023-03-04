@@ -198,6 +198,7 @@ export class PCheckerFast {
             port: Number(this.port_),
           });
 
+          // this is ugly, todo: fix all 
           onConnect();
           onData();
           onClose();
@@ -230,7 +231,7 @@ export class PCheckerFast {
               return;
             }
 
-            // parse actual response, usually something like: "HTTP/1.1 200 Connection established" 
+            // parse actual response, usually something like: "HTTP/1.1 200 Connection established"
             httpsRequest.response = buffered.toString(
               "ascii",
               0,
@@ -307,7 +308,7 @@ export class PCheckerFast {
             resp.destroy();
             console.log(`pip constructor ON-Error: ${err}`);
 
-            return { error: ENUM_ERRORS.ConnectionError } as ProxyError;
+            resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
           });
         });
       }
@@ -343,11 +344,9 @@ export class PCheckerFast {
   }
 
   public async check() {
-    // let res = await this.checkHTTPProxy();
-    let res = await this.checkHTTPSSupport();
-
+    let all = await Promise.all([this.checkHTTPProxy(), this.checkHTTPSSupport()]);    
     this.clear();
 
-    return res;
+    return all;
   }
 }
