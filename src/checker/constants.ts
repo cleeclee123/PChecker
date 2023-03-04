@@ -100,7 +100,8 @@ export enum ENUM_ERRORS {
   StatusCodeError = "Status Code Error",
   ConnectionError = "Connection Error",
   JSONParseError = "JSON Parse Error",
-  PromiseRaceError = "PromiseRaceError"
+  PromiseRaceError = "PromiseRaceError",
+  SocketError = "SocketError"
 }
 
 /* CONSTANTS */

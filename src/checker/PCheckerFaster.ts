@@ -181,54 +181,109 @@ export class PCheckerFast {
     }
   }
 
-  public checkHTTPSSupport()/* : Promise<ProxyInfoFromHttps | Error> */ {
+  public async checkHTTPSSupport(): Promise<ProxyInfoFromHttps | ProxyError> {
     const timeoutPromise: Promise<ProxyInfoFromHttps> = this.createTimeout();
 
-    const bufferPromise = new Promise((resolve, reject) => {
-      let buffersLength: number = 0;
-      const buffers = [] as Buffer[];
-      let httpsProxyInfo = {} as ProxyInfoFromHttps;
+    const bufferPromise: Promise<ProxyInfoFromHttps | ProxyError> = new Promise(
+      (resolve, reject) => {
+        let httpsRequest = {} as ProxyInfoFromHttps;
+        let startTime = new Date().getTime();
+        let buffersLength: number = 0;
+        const buffers = [] as Buffer[];
 
-      this.socket_ = net.connect({
-        host: this.host_,
-        port: Number(this.port_),
-      });
-      let payload = `CONNECT ${this.host_}:${Number(this.port_)} HTTP/1.1\r\n`;
-      this.socket_.on("connect", () => {
-        this.socket_.write(`${payload}\r\n`);
-      });
+        // create a socket connection to the proxy server
+        const socketConnectCallBack = () => {
+          this.socket_ = net.connect({
+            host: this.host_,
+            port: Number(this.port_),
+          });
 
-      this.socket_.on("data", (chuck: Buffer) => {
-        buffers.push(chuck);
-        buffersLength += chuck.length;
+          onConnectCallBack();
+          onDataCallBack();
+          onCloseCallBack();
+          onEndCallBack();
+          onErrorCallBack();
+        };
 
-        const buffered = Buffer.concat(buffers, buffersLength);
-        const endOfHeaders = buffered.indexOf("\r\n\r\n");
+        const onConnectCallBack = () => {
+          // requests a http tunnel to be open https://en.wikipedia.org/wiki/HTTP_tunnel
+          let payload = `CONNECT ${this.host_}:${Number(
+            this.port_
+          )} HTTP/1.1\r\n`;
 
-        if (endOfHeaders === -1) {
-          return;
-        }
+          this.socket_.on("connect", () => {
+            this.socket_.write(`${payload}\r\n`);
+          });
+        };
 
-        const firstLine = buffered.toString(
-          "ascii",
-          0,
-          buffered.indexOf("\r\n")
-        );
-        const statusCode = +firstLine.split(" ")[1];
-      });
+        const onDataCallBack = () => {
+          this.socket_.on("data", (chuck: Buffer) => {
+            console.log(chuck);
+            buffers.push(chuck);
+            buffersLength += chuck.length;
 
-      this.socket_.on("end", () => {
-        console.log("end");
-      });
+            const buffered = Buffer.concat(buffers, buffersLength);
+            const endOfHeaders = buffered.indexOf("\r\n\r\n");
 
-      this.socket_.on("close", () => {
-        console.log("close");
-      });
+            // will contine to buffer
+            if (endOfHeaders === -1) {
+              return;
+            }
 
-      this.socket_.on("error", (error) => {
-        console.log(error);
-      });
-    });
+            httpsRequest.response = buffered.toString(
+              "ascii",
+              0,
+              buffered.indexOf("\r\n")
+            );
+            httpsRequest.statusCode = Number(
+              +httpsRequest.response.split(" ")[1]
+            );
+
+            // resolve right away if status code is not 200
+            if (httpsRequest.statusCode !== 200) {
+              resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
+            }
+          });
+        };
+
+        const onCloseCallBack = () => {
+          this.socket_.on("close", () => {
+            httpsRequest.responseTime = new Date().getTime() - startTime;
+            this.socket_.destroy();
+          });
+        };
+
+        const onEndCallBack = () => {
+          this.socket_.on("end", () => {
+            resolve(httpsRequest);
+          });
+        };
+
+        const onErrorCallBack = () => {
+          this.socket_.on("error", (error) => {
+            removeListeners();
+            this.socket_.destroy();
+            resolve({ error: ENUM_ERRORS.SocketError } as ProxyError);
+          });
+        };
+
+        const removeListeners = () => {
+          this.socket_.removeListener("end", onEndCallBack);
+          this.socket_.removeListener("error", onErrorCallBack);
+          this.socket_.removeListener("close", onCloseCallBack);
+        };
+
+        // run
+        socketConnectCallBack();
+      }
+    );
+
+    try {
+      return await Promise.race([bufferPromise, timeoutPromise]);
+    } catch (error) {
+      console.log(`httpsCheck PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+    }
   }
 
   public getPublicIPPromise(): Promise<string | ProxyError> {
@@ -282,15 +337,11 @@ export class PCheckerFast {
     this.timeoutsArray_.forEach(async (to) => {
       clearTimeout(await to);
     });
-
-    // socket clean up
-    this.socket_.removeListener("end", onended);
-    this.socket_.removeListener("error", onerror);
-    this.socket_.removeListener("close", onclose);
   }
 
   public async check() {
-    let res = await this.checkHTTPProxy();
+    // let res = await this.checkHTTPProxy();
+    let res = await this.checkHTTPSSupport();
 
     this.clear();
 
