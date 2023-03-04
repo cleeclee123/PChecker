@@ -192,20 +192,20 @@ export class PCheckerFast {
         const buffers = [] as Buffer[];
 
         // create a socket connection to the proxy server
-        const socketConnectCallBack = () => {
+        const socketConnect = () => {
           this.socket_ = net.connect({
             host: this.host_,
             port: Number(this.port_),
           });
 
-          onConnectCallBack();
-          onDataCallBack();
-          onCloseCallBack();
-          onEndCallBack();
-          onErrorCallBack();
+          onConnect();
+          onData();
+          onClose();
+          onEnd();
+          onError();
         };
 
-        const onConnectCallBack = () => {
+        const onConnect = () => {
           // requests a http tunnel to be open https://en.wikipedia.org/wiki/HTTP_tunnel
           let payload = `CONNECT ${this.host_}:${Number(
             this.port_
@@ -216,7 +216,7 @@ export class PCheckerFast {
           });
         };
 
-        const onDataCallBack = () => {
+        const onData = () => {
           this.socket_.on("data", (chuck: Buffer) => {
             console.log(chuck);
             buffers.push(chuck);
@@ -249,20 +249,20 @@ export class PCheckerFast {
           });
         };
 
-        const onCloseCallBack = () => {
+        const onClose = () => {
           this.socket_.on("close", () => {
             httpsRequest.responseTime = new Date().getTime() - startTime;
             this.socket_.destroy();
           });
         };
 
-        const onEndCallBack = () => {
+        const onEnd = () => {
           this.socket_.on("end", () => {
             resolve(httpsRequest);
           });
         };
 
-        const onErrorCallBack = () => {
+        const onError = () => {
           this.socket_.on("error", (error) => {
             removeListeners();
             this.socket_.destroy();
@@ -271,13 +271,13 @@ export class PCheckerFast {
         };
 
         const removeListeners = () => {
-          this.socket_.removeListener("end", onEndCallBack);
-          this.socket_.removeListener("error", onErrorCallBack);
-          this.socket_.removeListener("close", onCloseCallBack);
+          this.socket_.removeListener("end", onEnd);
+          this.socket_.removeListener("error", onError);
+          this.socket_.removeListener("close", onClose);
         };
 
         // run
-        socketConnectCallBack();
+        socketConnect();
       }
     );
 
