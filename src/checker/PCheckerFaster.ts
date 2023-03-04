@@ -7,7 +7,6 @@ import {
   ENUM_ERRORS,
 } from "./constants.js";
 import net from "net";
-import tls from "tls";
 
 type ProxyOptions = {
   host: string;
@@ -21,11 +20,17 @@ type ProxyError = {
   error: ENUM_ERRORS;
 };
 
-type ProxyInfo = {
+type ProxyInfoFromHttp = {
   header: JSON;
   responseTime: number;
   anonymity: ENUM_ProxyAnonymity;
   cause: string[];
+};
+
+type ProxyInfoFromHttps = {
+  statusCode: number;
+  response: any;
+  responseTime: number;
 };
 
 export class PCheckerFast {
@@ -36,6 +41,7 @@ export class PCheckerFast {
   private publicIPAddress_: string | Promise<string | ProxyError>;
   private auth_: string;
   private timeoutsArray_: Array<Promise<any>>;
+  private socket_: net.Socket;
 
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
 
@@ -53,11 +59,15 @@ export class PCheckerFast {
     this.options_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
+    // when i implement sign up/login, this will be saved and run only once everyday for every user
     publicIPAddress !== undefined
       ? (this.publicIPAddress_ = publicIPAddress)
       : (this.publicIPAddress_ = this.getPublicIPPromise());
 
-    (username !== undefined && password !== undefined) ? this.auth_ = "Basic " + Buffer.from(username + ":" + password).toString("base64") : this.auth_ = undefined
+    username !== undefined && password !== undefined
+      ? (this.auth_ =
+          "Basic " + Buffer.from(username + ":" + password).toString("base64"))
+      : (this.auth_ = undefined);
 
     this.options_ = {
       host: this.host_,
@@ -67,7 +77,7 @@ export class PCheckerFast {
     };
 
     if (this.auth_ !== undefined) {
-      this.options_.headers = { "Proxy-Authorization": this.auth_, }; 
+      this.options_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
@@ -76,14 +86,14 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfo | Error>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
-  public async checkHTTPProxy(): Promise<ProxyInfo | ProxyError> {
-    const timeoutPromise: Promise<ProxyInfo> = this.createTimeout();
+  public async checkHTTPProxy(): Promise<ProxyInfoFromHttp | ProxyError> {
+    const timeoutPromise: Promise<ProxyInfoFromHttp> = this.createTimeout();
     // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
     let resolvedPIP = await this.publicIPAddress_;
 
-    const response: Promise<ProxyInfo | ProxyError> = new Promise(
+    const response: Promise<ProxyInfoFromHttp | ProxyError> = new Promise(
       (resolve, reject) => {
-        let httpRequest = {} as ProxyInfo;
+        let httpRequest = {} as ProxyInfoFromHttp;
         let errorObject = {} as ProxyError;
         let startTime = new Date().getTime();
 
@@ -171,6 +181,56 @@ export class PCheckerFast {
     }
   }
 
+  public checkHTTPSSupport()/* : Promise<ProxyInfoFromHttps | Error> */ {
+    const timeoutPromise: Promise<ProxyInfoFromHttps> = this.createTimeout();
+
+    const bufferPromise = new Promise((resolve, reject) => {
+      let buffersLength: number = 0;
+      const buffers = [] as Buffer[];
+      let httpsProxyInfo = {} as ProxyInfoFromHttps;
+
+      this.socket_ = net.connect({
+        host: this.host_,
+        port: Number(this.port_),
+      });
+      let payload = `CONNECT ${this.host_}:${Number(this.port_)} HTTP/1.1\r\n`;
+      this.socket_.on("connect", () => {
+        this.socket_.write(`${payload}\r\n`);
+      });
+
+      this.socket_.on("data", (chuck: Buffer) => {
+        buffers.push(chuck);
+        buffersLength += chuck.length;
+
+        const buffered = Buffer.concat(buffers, buffersLength);
+        const endOfHeaders = buffered.indexOf("\r\n\r\n");
+
+        if (endOfHeaders === -1) {
+          return;
+        }
+
+        const firstLine = buffered.toString(
+          "ascii",
+          0,
+          buffered.indexOf("\r\n")
+        );
+        const statusCode = +firstLine.split(" ")[1];
+      });
+
+      this.socket_.on("end", () => {
+        console.log("end");
+      });
+
+      this.socket_.on("close", () => {
+        console.log("close");
+      });
+
+      this.socket_.on("error", (error) => {
+        console.log(error);
+      });
+    });
+  }
+
   public getPublicIPPromise(): Promise<string | ProxyError> {
     const timeoutPromise: Promise<string> = this.createTimeout();
     const pipPromise: Promise<string | ProxyError> = new Promise(
@@ -184,7 +244,7 @@ export class PCheckerFast {
           resp.on("close", () => {
             resp.destroy();
           });
-          
+
           resp.on("error", (err) => {
             resp.destroy();
             console.log(`pip constructor ON-Error: ${err}`);
@@ -206,10 +266,6 @@ export class PCheckerFast {
     }
   }
 
-  // public checkHTTPSSupport(): any {
-
-  // }
-
   // function creates timeout, mem is managed by clearTimeouts()
   private createTimeout<T>() {
     const timeoutPromise: Promise<T> = new Promise((resolve) =>
@@ -227,11 +283,10 @@ export class PCheckerFast {
       clearTimeout(await to);
     });
 
-    // http clear
-    // this.proxyRequest_ on("close", () => this.proxyRequest_.destroy());
-    // this.proxyRequest_. on("error", () => this.proxyRequest_.destroy());
-    // this.publicIPRequest_. on("close", () => this.publicIPRequest_.destroy());
-    // this.publicIPRequest_. on("error", () => this.publicIPRequest_.destroy());
+    // socket clean up
+    this.socket_.removeListener("end", onended);
+    this.socket_.removeListener("error", onerror);
+    this.socket_.removeListener("close", onclose);
   }
 
   public async check() {
