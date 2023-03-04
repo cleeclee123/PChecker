@@ -57,18 +57,18 @@ export class PCheckerFast {
       ? (this.publicIPAddress_ = publicIPAddress)
       : (this.publicIPAddress_ = this.getPublicIPPromise());
 
-    this.auth_ =
-      "Basic " + Buffer.from(username + ":" + password).toString("base64");
+    (username !== undefined && password !== undefined) ? this.auth_ = "Basic " + Buffer.from(username + ":" + password).toString("base64") : this.auth_ = undefined
 
     this.options_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
       path: PCheckerFast.kProxyJudgeURL,
-      headers: {
-        "Proxy-Authorization": this.auth_,
-      }, // todo: seperate headers from options for more control on what we are sending to proxy server
     };
+
+    if (this.auth_ !== undefined) {
+      this.options_.headers = { "Proxy-Authorization": this.auth_, }; 
+    }
   }
 
   /**
@@ -206,6 +206,10 @@ export class PCheckerFast {
     }
   }
 
+  // public checkHTTPSSupport(): any {
+
+  // }
+
   // function creates timeout, mem is managed by clearTimeouts()
   private createTimeout<T>() {
     const timeoutPromise: Promise<T> = new Promise((resolve) =>
@@ -224,7 +228,7 @@ export class PCheckerFast {
     });
 
     // http clear
-    //this.proxyRequest_ on("close", () => this.proxyRequest_.destroy());
+    // this.proxyRequest_ on("close", () => this.proxyRequest_.destroy());
     // this.proxyRequest_. on("error", () => this.proxyRequest_.destroy());
     // this.publicIPRequest_. on("close", () => this.publicIPRequest_.destroy());
     // this.publicIPRequest_. on("error", () => this.publicIPRequest_.destroy());
