@@ -230,11 +230,14 @@ export class PCheckerFast {
               return;
             }
 
+            // parse actual response, usually something like: "HTTP/1.1 200 Connection established" 
             httpsRequest.response = buffered.toString(
               "ascii",
               0,
               buffered.indexOf("\r\n")
             );
+
+            // parse status code from response
             httpsRequest.statusCode = Number(
               +httpsRequest.response.split(" ")[1]
             );
