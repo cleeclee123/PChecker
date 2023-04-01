@@ -104,4 +104,4 @@ dist
 .tern-port
 
 # Compiled JavaScript from TypeScript
-/build
+build/
