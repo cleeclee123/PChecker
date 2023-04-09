@@ -61,6 +61,31 @@ export type ProxyHeaders = {
   req: JSON;
 };
 
+export type ProxyOptions = {
+  host: string;
+  port: number;
+  method: string;
+  path: string;
+  headers?: any;
+};
+
+export type ProxyError = {
+  error: ENUM_ERRORS;
+};
+
+export type ProxyInfoFromHttp = {
+  header: JSON;
+  responseTime: number;
+  anonymity: ENUM_ProxyAnonymity;
+  cause: string[];
+};
+
+export type ProxyInfoFromHttps = {
+  statusCode: number;
+  response: any;
+  responseTime: number;
+};
+
 /// export interface 
 
 // export interface SpawnProcess {

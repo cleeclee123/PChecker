@@ -5,45 +5,29 @@ import {
   ENUM_ProxyAnonymity,
   ENUM_FlaggedHeaderValues,
   ENUM_ERRORS,
+  ProxyOptions,
+  ProxyError,
+  ProxyInfoFromHttp,
+  ProxyInfoFromHttps,
 } from "./constants.js";
 import net from "net";
-
-type ProxyOptions = {
-  host: string;
-  port: number;
-  method: string;
-  path: string;
-  headers?: any;
-};
-
-type ProxyError = {
-  error: ENUM_ERRORS;
-};
-
-type ProxyInfoFromHttp = {
-  header: JSON;
-  responseTime: number;
-  anonymity: ENUM_ProxyAnonymity;
-  cause: string[];
-};
-
-type ProxyInfoFromHttps = {
-  statusCode: number;
-  response: any;
-  responseTime: number;
-};
 
 export class PCheckerFast {
   public host_: string;
   public port_: string;
   public timeout_: number;
-  public options_: ProxyOptions;
+  public optionspj_: ProxyOptions;
+  public optionstd_: ProxyOptions;
   private publicIPAddress_: string | Promise<string | ProxyError>;
   private auth_: string;
   private timeoutsArray_: Array<Promise<any>>;
   private socket_: net.Socket;
 
   static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
+  static readonly kTestDomain: string = `http://myproxyjudgeclee.software/index.html`;
+
+  // temp
+  static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
 
   constructor(
     host: string,
@@ -56,33 +40,41 @@ export class PCheckerFast {
     this.host_ = host;
     this.port_ = port;
     this.timeout_ = Number(timeout);
-    this.options_ = {} as ProxyOptions;
+    this.optionspj_ = {} as ProxyOptions;
+    this.optionstd_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
     // when i implement sign up/login, this will be saved and run only once everyday for every user
     publicIPAddress !== undefined
       ? (this.publicIPAddress_ = publicIPAddress)
-      : (this.publicIPAddress_ = this.getPublicIPPromise());
+      : (this.publicIPAddress_ = this.getPublicIP());
 
     username !== undefined && password !== undefined
       ? (this.auth_ =
           "Basic " + Buffer.from(username + ":" + password).toString("base64"))
       : (this.auth_ = undefined);
 
-    this.options_ = {
+    this.optionspj_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
       path: PCheckerFast.kProxyJudgeURL,
     };
 
+    this.optionstd_ = {
+      host: this.host_,
+      port: Number(this.port_),
+      method: "GET",
+      path: PCheckerFast.injectedTest1, // @TODO: CHANGE BACK TO kTestDomain
+    };
+
     if (this.auth_ !== undefined) {
-      this.options_.headers = { "Proxy-Authorization": this.auth_ };
+      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
   /**
-   * @method: checkHTTP()
+   * @method: checkProxyAnonymity(), private helper function
    * @returns Promise<ProxyInfo | Error>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
@@ -98,7 +90,7 @@ export class PCheckerFast {
         let errorObject = {} as ProxyError;
         let startTime = new Date().getTime();
 
-        http.get(this.options_, (res) => {
+        http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
             console.log(`httpRequest Bad Status Code`);
             errorObject.error = ENUM_ERRORS.StatusCodeError;
@@ -183,7 +175,7 @@ export class PCheckerFast {
   }
 
   /**
-   * @method: checkHTTPSSupport()
+   * @method: checkProxyHTTPSSupport(), private helper function
    * @returns Promise<ProxyInfoFromHTTPS | ProxyError>
    * tries a HTTP CONNECT method
    */
@@ -301,30 +293,151 @@ export class PCheckerFast {
   }
 
   /**
-   * @method: checkContent()
+   * @method: checkProxyContent(), private helper function
    * @returns: Promise<any | Error>
    * Check if proxy injects something (scripts, ads, modified data, etc)
    */
-  private checkContent()/* : Promise<any | Error> */ {
-    
+  public async checkProxyContent() /* : Promise<any | Error> */ {
+    // const timeoutPromise: Promise<ProxyInfoFromHttps> =
+    //   this.createTimeout("timedout");
+
+    const expectedResponse: string[] = [
+      `<!DOCTYPE html>`,
+      `<html lang="en">`,
+      `<body>`,
+      `<p>roses are red violets are blue if this text is changed then proxy no bueno </p>`,
+      `</body>`,
+      `<script>`,
+      `console.log("hello pchecker")`,
+      `</script>`,
+      `</html>`,
+    ];
+
+    const proxyResponse: Promise<string[] | ProxyError> = new Promise(
+      (resolve, reject) => {
+        let errorObject = {} as ProxyError;
+
+        http.get(this.optionstd_, (res) => {
+          if (res.statusCode !== 200) {
+            console.log(`httpRequest Bad Status Code ${res.statusCode}`);
+            errorObject.error = ENUM_ERRORS.StatusCodeError;
+
+            resolve(errorObject);
+          }
+
+          res.setEncoding("utf8");
+          let body = [] as string[];
+          res.on("data", (chunk: string) => {
+            let split = chunk.split("\n");
+            split.forEach((line: string) => body.push(line.trim()));
+            body = body.filter((v) => v.length !== 0);
+          });
+
+          res.on("close", () => {
+            res.destroy();
+            resolve(body);
+          });
+
+          res.on("end", () => {});
+
+          res.on("error", (error) => {
+            res.destroy();
+            console.log(`httpResponse ON-Error: ${error}`);
+            errorObject.error = ENUM_ERRORS.ConnectionError;
+
+            resolve(errorObject);
+          });
+        });
+      }
+    );
+
+    const contentCheck: Promise<boolean | ProxyError> = new Promise(
+      (resolve, reject) => {
+        let errorObject = {} as ProxyError;
+        let response: string[] = [];
+
+        proxyResponse.then((res: string[] | ProxyError) => {
+          if (res.hasOwnProperty("error")) {
+            resolve(res as ProxyError);
+          } else {
+            response = res as string[];
+          }
+
+          // check if data/html has been alter after connecting with proxy server
+          const hasChanged = (): boolean => {
+            console.log(response)
+            console.log(expectedResponse)
+            let i = expectedResponse.length;
+            while (i--) {
+              if (expectedResponse[i] !== response[i]) {
+                return true;
+              }
+            }
+
+            return false;
+          };
+
+          const suspiciousPatterns = [
+            /<script>.*eval\s*\(.*<\/script>/, // Scripts using "eval" function
+            /<iframe\s+src="data:/, // Data URL iframes
+            /<div[class*="ad"], div[id*="ad"]/, // injected ads 
+
+            // need more research, add more patterns as needed
+          ];
+          // const hasSuspicious = (): boolean => {
+
+          // };
+
+          console.log(hasChanged());
+        });
+      }
+    );
+
+    return contentCheck;
+
+    // function analyzeContent(content) {
+    //   // Define a list of suspicious patterns or keywords
+
+    //   // Check if any suspicious patterns match the content
+    //   const matches = suspiciousPatterns.some((pattern) =>
+    //     pattern.test(content)
+    //   );
+
+    //   if (matches) {
+    //     console.log("Potentially malicious content detected");
+    //   } else {
+    //     console.log("No suspicious content detected");
+    //   }
+    // }
   }
-  
+
   /**
-   * @method: checkGoogle()
+   * @method: checkProxyGoogleSupport(), private helper function
    * @returns: Promise<any | Error>
    * Check if proxy works with google
-  */
-  private checkGoogle()/* : Promise<any | Error> */ {
-
-  }
-
+   */
+  private checkProxyGoogleSupport() /* : Promise<any | Error> */ {}
 
   /**
-   * @method: getPublicIPPromise()
+   * @method: checkProxyDNSLeak, private helper function
+   * @returns: Promise<bool | Error>
+   * Check if proxy server will cause a DNS leak (BASH.WS is goat)
+   */
+  private checkProxyDNSLeak() /* : Promise<any | Error> */ {}
+
+  /**
+   * @method: checkProxyWebRTCLeak, private helper function
+   * @returns: Promise<bool | Error>
+   * Check if proxy server will cause a WebRTC leak (BASH.WS is goat)
+   */
+  private checkProxyWebRTCLeak() /* : Promise<any | Error> */ {}
+
+  /**
+   * @method: getPublicIP(), private helper function
    * @returns Promise<String | Error>
    * Gets Your Public IP Address
    */
-  private getPublicIPPromise(): Promise<string | ProxyError> {
+  private getPublicIP(): Promise<string | ProxyError> {
     const timeoutPromise: Promise<string> = this.createTimeout("timedout");
     const pipPromise: Promise<string | ProxyError> = new Promise(
       (resolve, reject) => {
@@ -402,8 +515,10 @@ export class PCheckerFast {
    * runs both anomnity check
    */
   public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
+    const anomnityStatus = await this.checkProxyAnonymity();
     this.clear();
-    return await this.checkProxyAnonymity();
+
+    return anomnityStatus;
   }
 
   /**
@@ -412,7 +527,9 @@ export class PCheckerFast {
    * runs both anomnity check
    */
   public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
+    const httpsStatus = await this.checkProxyHTTPSSupport();
     this.clear();
-    return await this.checkProxyHTTPSSupport();
+
+    return httpsStatus;
   }
 }
