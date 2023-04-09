@@ -86,7 +86,7 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfo | Error>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
-  public async checkHTTPProxy(): Promise<ProxyInfoFromHttp | ProxyError> {
+  private async checkProxyAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
     const timeoutPromise: Promise<ProxyInfoFromHttp> =
       this.createTimeout("timedout");
     // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
@@ -187,7 +187,9 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfoFromHTTPS | ProxyError>
    * tries a HTTP CONNECT method
    */
-  public async checkHTTPSSupport(): Promise<ProxyInfoFromHttps | ProxyError> {
+  private async checkProxyHTTPSSupport(): Promise<
+    ProxyInfoFromHttps | ProxyError
+  > {
     const timeoutPromise: Promise<ProxyInfoFromHttps> =
       this.createTimeout("timedout");
 
@@ -299,11 +301,30 @@ export class PCheckerFast {
   }
 
   /**
+   * @method: checkContent()
+   * @returns: Promise<any | Error>
+   * Check if proxy injects something (scripts, ads, modified data, etc)
+   */
+  private checkContent()/* : Promise<any | Error> */ {
+    
+  }
+  
+  /**
+   * @method: checkGoogle()
+   * @returns: Promise<any | Error>
+   * Check if proxy works with google
+  */
+  private checkGoogle()/* : Promise<any | Error> */ {
+
+  }
+
+
+  /**
    * @method: getPublicIPPromise()
    * @returns Promise<String | Error>
    * Gets Your Public IP Address
    */
-  public getPublicIPPromise(): Promise<string | ProxyError> {
+  private getPublicIPPromise(): Promise<string | ProxyError> {
     const timeoutPromise: Promise<string> = this.createTimeout("timedout");
     const pipPromise: Promise<string | ProxyError> = new Promise(
       (resolve, reject) => {
@@ -349,20 +370,49 @@ export class PCheckerFast {
   }
 
   // timeout memory management
-  private clear() {
+  private clear(): void {
     this.timeoutsArray_.forEach(async (to) => {
       clearTimeout(await to);
     });
   }
 
-  // class entry point
-  public async check() {
-    let all = await Promise.all([
-      this.checkHTTPProxy(),
-      this.checkHTTPSSupport(),
-    ]);
+  /**
+   * @method: checkAll()
+   * @returns Promise<any>
+   * runs both anomnity and https check
+   */
+  public async checkAll(): Promise<any> {
+    // promise all error: will only return valid resolved promises
+    const promises = [
+      this.checkProxyAnonymity(),
+      this.checkProxyHTTPSSupport(),
+    ];
+    const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
+    const validResults = results.filter((result) => !(result instanceof Error));
+
+    // clear all timeouts
     this.clear();
 
-    return all;
+    return validResults;
+  }
+
+  /**
+   * @method: checkAnonymity()
+   * @returns Promise<ProxyInfoFromHttp | ProxyError>
+   * runs both anomnity check
+   */
+  public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
+    this.clear();
+    return await this.checkProxyAnonymity();
+  }
+
+  /**
+   * @method: checkHTTPS()
+   * @returns Promise<ProxyInfoFromHttp | ProxyError>
+   * runs both anomnity check
+   */
+  public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
+    this.clear();
+    return await this.checkProxyHTTPSSupport();
   }
 }
