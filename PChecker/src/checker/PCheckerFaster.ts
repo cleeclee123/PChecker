@@ -90,7 +90,9 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfo | Error>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
-  private async checkProxyAnonymityPrivate(): Promise<ProxyInfoFromHttp | ProxyError> {
+  private async checkProxyAnonymityPrivate(): Promise<
+    ProxyInfoFromHttp | ProxyError
+  > {
     const timeoutPromise: Promise<ProxyInfoFromHttp> =
       this.createTimeout("timedout");
     // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
@@ -309,7 +311,9 @@ export class PCheckerFast {
    * @returns: Promise<any | Error>
    * Check if proxy injects something (scripts, ads, modified data, etc)
    */
-  public async checkProxyContentPrivate(): Promise<ProxyContentCheck | ProxyError> {
+  public async checkProxyContentPrivate(): Promise<
+    ProxyContentCheck | ProxyError
+  > {
     const timeoutPromise: Promise<ProxyContentCheck> =
       this.createTimeout("timedout");
 
@@ -377,18 +381,16 @@ export class PCheckerFast {
           }
 
           // check if data/html has been alter after connecting with proxy server
-          const hasChanged = (): void => {
+          const hasChanged = (): boolean => {
             // console.log(response);
             // console.log(expectedResponse);
             let i = expectedResponse.length;
             while (i--) {
               if (expectedResponse[i] !== response[i]) {
-                content.hasChanged = true;
-                return;
+                return true;
               }
             }
-            content.hasChanged = false;
-            resolve(content);
+            return false;
           };
 
           // check if data/html has any suspicious patterns
@@ -412,8 +414,14 @@ export class PCheckerFast {
             resolve(content);
           };
 
-          hasChanged();
-          hasSuspicious();
+          // no needs to run hasSuspicious() if not changed
+          if (hasChanged()) {
+            content.hasChanged = true;
+            hasSuspicious();
+          } else {
+            content.hasChanged = false;
+            resolve(content);
+          }
         });
       }
     );
@@ -556,7 +564,7 @@ export class PCheckerFast {
   public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
     const contentCheck = await this.checkProxyContentPrivate();
     this.clear();
-  
+
     return contentCheck;
   }
 }
