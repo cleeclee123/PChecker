@@ -9,6 +9,8 @@ import {
   ProxyError,
   ProxyInfoFromHttp,
   ProxyInfoFromHttps,
+  ProxyContentCheck,
+  kUserAgents,
 } from "./constants.js";
 import net from "net";
 
@@ -28,6 +30,7 @@ export class PCheckerFast {
 
   // temp
   static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
+  static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
   constructor(
     host: string,
@@ -59,17 +62,26 @@ export class PCheckerFast {
       port: Number(this.port_),
       method: "GET",
       path: PCheckerFast.kProxyJudgeURL,
+      headers: {
+        "User-Agent":
+          kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
+      },
     };
 
     this.optionstd_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerFast.injectedTest1, // @TODO: CHANGE BACK TO kTestDomain
+      path: PCheckerFast.injectedTest2, // @TODO: CHANGE BACK TO kTestDomain
+      headers: {
+        "User-Agent":
+          kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
+      },
     };
 
     if (this.auth_ !== undefined) {
       this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
@@ -78,7 +90,7 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfo | Error>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
-  private async checkProxyAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
+  private async checkProxyAnonymityPrivate(): Promise<ProxyInfoFromHttp | ProxyError> {
     const timeoutPromise: Promise<ProxyInfoFromHttp> =
       this.createTimeout("timedout");
     // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
@@ -179,7 +191,7 @@ export class PCheckerFast {
    * @returns Promise<ProxyInfoFromHTTPS | ProxyError>
    * tries a HTTP CONNECT method
    */
-  private async checkProxyHTTPSSupport(): Promise<
+  private async checkProxyHTTPSSupportPrivate(): Promise<
     ProxyInfoFromHttps | ProxyError
   > {
     const timeoutPromise: Promise<ProxyInfoFromHttps> =
@@ -297,9 +309,9 @@ export class PCheckerFast {
    * @returns: Promise<any | Error>
    * Check if proxy injects something (scripts, ads, modified data, etc)
    */
-  public async checkProxyContent() /* : Promise<any | Error> */ {
-    // const timeoutPromise: Promise<ProxyInfoFromHttps> =
-    //   this.createTimeout("timedout");
+  public async checkProxyContentPrivate(): Promise<ProxyContentCheck | ProxyError> {
+    const timeoutPromise: Promise<ProxyContentCheck> =
+      this.createTimeout("timedout");
 
     const expectedResponse: string[] = [
       `<!DOCTYPE html>`,
@@ -307,9 +319,6 @@ export class PCheckerFast {
       `<body>`,
       `<p>roses are red violets are blue if this text is changed then proxy no bueno </p>`,
       `</body>`,
-      `<script>`,
-      `console.log("hello pchecker")`,
-      `</script>`,
       `</html>`,
     ];
 
@@ -326,16 +335,19 @@ export class PCheckerFast {
           }
 
           res.setEncoding("utf8");
+          let response: string[] = [];
           let body = [] as string[];
           res.on("data", (chunk: string) => {
-            let split = chunk.split("\n");
-            split.forEach((line: string) => body.push(line.trim()));
-            body = body.filter((v) => v.length !== 0);
+            body.push(chunk);
+
+            let split = body[0].split("\n");
+            split.forEach((line: string) => response.push(line.trim()));
+            response = response.filter((v) => v.length !== 0);
           });
 
           res.on("close", () => {
             res.destroy();
-            resolve(body);
+            resolve(response);
           });
 
           res.on("end", () => {});
@@ -351,12 +363,13 @@ export class PCheckerFast {
       }
     );
 
-    const contentCheck: Promise<boolean | ProxyError> = new Promise(
+    const contentCheck: Promise<ProxyContentCheck | ProxyError> = new Promise(
       (resolve, reject) => {
-        let errorObject = {} as ProxyError;
+        let content = {} as ProxyContentCheck;
         let response: string[] = [];
 
         proxyResponse.then((res: string[] | ProxyError) => {
+          // response type check
           if (res.hasOwnProperty("error")) {
             resolve(res as ProxyError);
           } else {
@@ -364,51 +377,53 @@ export class PCheckerFast {
           }
 
           // check if data/html has been alter after connecting with proxy server
-          const hasChanged = (): boolean => {
-            console.log(response)
-            console.log(expectedResponse)
+          const hasChanged = (): void => {
+            // console.log(response);
+            // console.log(expectedResponse);
             let i = expectedResponse.length;
             while (i--) {
               if (expectedResponse[i] !== response[i]) {
-                return true;
+                content.hasChanged = true;
+                return;
               }
             }
-
-            return false;
+            content.hasChanged = false;
+            resolve(content);
           };
 
-          const suspiciousPatterns = [
-            /<script>.*eval\s*\(.*<\/script>/, // Scripts using "eval" function
-            /<iframe\s+src="data:/, // Data URL iframes
-            /<div[class*="ad"], div[id*="ad"]/, // injected ads 
+          // check if data/html has any suspicious patterns
+          // prettier-ignore
+          const hasSuspicious = () /*:  boolean */ => {
+            response.forEach((e) => {
+              if (/<script[^>]*>/i.test(e)) content.hasScripts = true;
+              if (/<iframe[^>]*>/i.test(e)) content.hasIframes = true;
+              if (/<div[^>]*>/i.test(e)) content.hasUnwantedContent = true;
+              if (/(class|id)\s*=\s*["'][^"']*ad[^"']*["']/i.test(e)) content.hasAds = true;
+              if (/(class|id)\s*=\s*["'][^"']*?(?:ad|banner|popup|interstitial|advert)[^"']*?["']/i) content.hasAds = true;
+              if (/<script>.*eval\s*\(.*<\/script>/.test(e)) content.hasExecution = true;
+              if (/data:text\/(html|javascript);base64,/i.test(e)) content.hasEncodedContent = true;
+              if (/\s+on[a-z]+ *= *["']?[^"'>]+["']?/i.test(e)) content.hasEventHandler = true;
+              if (/(?:eval|document\.write|setTimeout|setInterval)\s*\(/i.test(e)) content.hasFunctions = true;
+              if (/(?:http:\/\/|https:\/\/|\/\/)[\w-_.]+(?:\.[\w-_]+)+/i.test(e)) content.hasRedirect = true;
+              if (/(?:googlesyndication\.com|doubleclick\.net|google-analytics\.com)/i.test(e)) content.hasTracker = true;
+              if (/(?:coinhive\.min\.js|coinhive\.com)/i.test(e)) content.hasMiner = true;
+            });
 
-            // need more research, add more patterns as needed
-          ];
-          // const hasSuspicious = (): boolean => {
+            resolve(content);
+          };
 
-          // };
-
-          console.log(hasChanged());
+          hasChanged();
+          hasSuspicious();
         });
       }
     );
 
-    return contentCheck;
-
-    // function analyzeContent(content) {
-    //   // Define a list of suspicious patterns or keywords
-
-    //   // Check if any suspicious patterns match the content
-    //   const matches = suspiciousPatterns.some((pattern) =>
-    //     pattern.test(content)
-    //   );
-
-    //   if (matches) {
-    //     console.log("Potentially malicious content detected");
-    //   } else {
-    //     console.log("No suspicious content detected");
-    //   }
-    // }
+    try {
+      return await Promise.race([contentCheck, timeoutPromise]);
+    } catch (error) {
+      console.log(`httpsCheck PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+    }
   }
 
   /**
@@ -416,21 +431,21 @@ export class PCheckerFast {
    * @returns: Promise<any | Error>
    * Check if proxy works with google
    */
-  private checkProxyGoogleSupport() /* : Promise<any | Error> */ {}
+  private checkProxyGoogleSupportPrivate() /* : Promise<any | Error> */ {}
 
   /**
    * @method: checkProxyDNSLeak, private helper function
    * @returns: Promise<bool | Error>
    * Check if proxy server will cause a DNS leak (BASH.WS is goat)
    */
-  private checkProxyDNSLeak() /* : Promise<any | Error> */ {}
+  private checkProxyDNSLeakPrivate() /* : Promise<any | Error> */ {}
 
   /**
    * @method: checkProxyWebRTCLeak, private helper function
    * @returns: Promise<bool | Error>
    * Check if proxy server will cause a WebRTC leak (BASH.WS is goat)
    */
-  private checkProxyWebRTCLeak() /* : Promise<any | Error> */ {}
+  private checkProxyWebRTCLeakPrivate() /* : Promise<any | Error> */ {}
 
   /**
    * @method: getPublicIP(), private helper function
@@ -497,8 +512,8 @@ export class PCheckerFast {
   public async checkAll(): Promise<any> {
     // promise all error: will only return valid resolved promises
     const promises = [
-      this.checkProxyAnonymity(),
-      this.checkProxyHTTPSSupport(),
+      this.checkProxyAnonymityPrivate(),
+      this.checkProxyHTTPSSupportPrivate(),
     ];
     const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
     const validResults = results.filter((result) => !(result instanceof Error));
@@ -512,10 +527,10 @@ export class PCheckerFast {
   /**
    * @method: checkAnonymity()
    * @returns Promise<ProxyInfoFromHttp | ProxyError>
-   * runs both anomnity check
+   * runs anomnity check
    */
   public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
-    const anomnityStatus = await this.checkProxyAnonymity();
+    const anomnityStatus = await this.checkProxyAnonymityPrivate();
     this.clear();
 
     return anomnityStatus;
@@ -524,12 +539,24 @@ export class PCheckerFast {
   /**
    * @method: checkHTTPS()
    * @returns Promise<ProxyInfoFromHttp | ProxyError>
-   * runs both anomnity check
+   * runs https support check
    */
   public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
-    const httpsStatus = await this.checkProxyHTTPSSupport();
+    const httpsStatus = await this.checkProxyHTTPSSupportPrivate();
     this.clear();
 
     return httpsStatus;
+  }
+
+  /**
+   * @method: checkContent()
+   * @returns Promise<ProxyInfoFromHttp | ProxyError>
+   * runs content check
+   */
+  public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
+    const contentCheck = await this.checkProxyContentPrivate();
+    this.clear();
+  
+    return contentCheck;
   }
 }

@@ -86,15 +86,20 @@ export type ProxyInfoFromHttps = {
   responseTime: number;
 };
 
-/// export interface 
-
-// export interface SpawnProcess {
-//   instance_: SpawnProcess;
-//   httpsProcess_: ChildProcessWithoutNullStreams;
-//   pingProcess_: ChildProcessWithoutNullStreams;
-//   proxyProcess_: ChildProcessWithoutNullStreams;
-//   superThis_: PChecker;
-// }
+export type ProxyContentCheck = {
+  hasChanged: boolean,
+  hasUnwantedContent?: boolean,
+  hasAds?: boolean, 
+  hasScripts?: boolean, 
+  hasIframes?: boolean,
+  hasExecution?: boolean,
+  hasEncodedContent?: boolean, 
+  hasEventHandler?: boolean,
+  hasFunctions?: boolean,
+  hasRedirect?: boolean, 
+  hasTracker?: boolean, 
+  hasMiner?: boolean, 
+}
 
 /* ENUMS */
 
@@ -112,7 +117,13 @@ export enum ENUM_FlaggedHeaderValues {
   X_FORWARDED_FOR = "X_FORWARDED_FOR",
   X_FORWARDED_PROTO = "X_FORWARDED_PROTO",
   X_FORWARDED = "X_FORWARDED",
+  X_FORWARDED_HOST = "X_FORWARDED_HOST",
   X_PROXY_ID = "X_PROXY_ID",
+  X_FRAME_OPTIONS = "X_FRAME_OPTIONS",
+  X_CONTENT_TYPE_OPTION  = "X_CONTENT_TYPE_OPTION",
+  X_DNS_PREFETCH_CONTROL_CONTROL = "X_DNS_PREFETCH_CONTROL_CONTROL",
+  X_XSS_PROTECTION = "X_XSS_PROTECTION", 
+  SET_COOKIES = "SET_COOKIES",
 }
 
 export enum ENUM_ProxyAnonymity {
