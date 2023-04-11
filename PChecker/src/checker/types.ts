@@ -1,21 +1,5 @@
 import { ENUM_ProxyAnonymity, ENUM_ERRORS } from "./emuns.js";
 
-// main type return in pChecker
-export type ProxyCheck = {
-  proxyString?: string;
-  headers?: ProxyHeaders;
-  res?: JSON;
-  req?: JSON;
-  anonymity?: ENUM_ProxyAnonymity;
-  type?: string[];
-  cause?: string[];
-  https?: HTTPSCheck;
-  google?: boolean;
-  ping?: PingCheck;
-  location?: ProxyLocation;
-  performance?: ProxyPerformance; // todo: create function
-};
-
 // optional type if location data is available
 export type ProxyLocation = {
   country: string;
