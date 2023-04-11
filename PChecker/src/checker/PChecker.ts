@@ -1,6 +1,7 @@
 "use-strict";
 
 import http from "http";
+import net from "net";
 import {
   ProxyOptions,
   ProxyError,
@@ -13,7 +14,6 @@ import {
   ENUM_ProxyAnonymity,
   ENUM_ERRORS,
 } from "./emuns.js";
-import net from "net";
 
 export class PChecker {
   public host_: string;
