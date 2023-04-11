@@ -72,7 +72,7 @@ export class PCheckerFast {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerFast.injectedTest2, // @TODO: CHANGE BACK TO kTestDomain
+      path: PCheckerFast.kTestDomain, // @TODO: CHANGE BACK TO kTestDomain
       headers: {
         "User-Agent":
           kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
@@ -119,7 +119,6 @@ export class PCheckerFast {
 
           res.on("close", () => {
             httpRequest.responseTime = new Date().getTime() - startTime;
-            res.destroy();
           });
 
           res.on("end", () => {
@@ -169,7 +168,6 @@ export class PCheckerFast {
           });
 
           res.on("error", (error) => {
-            res.destroy();
             console.log(`httpRequest ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.ConnectionError;
 
@@ -350,14 +348,12 @@ export class PCheckerFast {
           });
 
           res.on("close", () => {
-            res.destroy();
             resolve(response);
           });
 
           res.on("end", () => {});
 
           res.on("error", (error) => {
-            res.destroy();
             console.log(`httpResponse ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.ConnectionError;
 
@@ -429,7 +425,7 @@ export class PCheckerFast {
     try {
       return await Promise.race([contentCheck, timeoutPromise]);
     } catch (error) {
-      console.log(`httpsCheck PromiseRace Error: ${error}`);
+      console.log(`content check PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
     }
   }
@@ -439,7 +435,40 @@ export class PCheckerFast {
    * @returns: Promise<any | Error>
    * Check if proxy works with google
    */
-  private checkProxyGoogleSupportPrivate() /* : Promise<any | Error> */ {}
+  private async checkProxyGoogleSupportPrivate(): Promise<
+    boolean | ProxyError
+  > {
+    const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
+
+    const googleOptions = {
+      host: this.host_,
+      port: Number(this.port_),
+      method: "GET",
+      path: "https://www.google.com/",
+      headers: {
+        "User-Agent":
+          kUserAgents[Math.floor(Math.random() * kUserAgents.length)],
+      },
+    };
+    const googlePromise: Promise<boolean | ProxyError> = new Promise(
+      (resolve, reject) => {
+        http.get(googleOptions, (res) => {
+          if (res.statusCode !== 200) {
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        });
+      }
+    );
+
+    try {
+      return await Promise.race([googlePromise, timeoutPromise]);
+    } catch (error) {
+      console.log(`google check PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+    }
+  }
 
   /**
    * @method: checkProxyDNSLeak, private helper function
@@ -563,6 +592,18 @@ export class PCheckerFast {
    */
   public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
     const contentCheck = await this.checkProxyContentPrivate();
+    this.clear();
+
+    return contentCheck;
+  }
+
+  /**
+   * @method: checkGoogle()
+   * @returns Promise<boolean | ProxyError>
+   * runs google support check
+   */
+  public async checkGoogle(): Promise<boolean | ProxyError> {
+    const contentCheck = await this.checkProxyGoogleSupportPrivate();
     this.clear();
 
     return contentCheck;
