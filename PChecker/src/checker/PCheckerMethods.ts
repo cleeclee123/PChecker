@@ -542,6 +542,11 @@ export class PCheckerMethods {
             try {
               const parsedData = JSON.parse(data);
 
+              const currentServer = parsedData.filter(
+                (server: DNSResponseServer) => server.type === "ip"
+              );
+              dnsLeakCheck.currentServer = currentServer;
+
               const dnsServers = parsedData.filter(
                 (server: DNSResponseServer) => server.type === "dns"
               );

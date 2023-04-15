@@ -89,6 +89,7 @@ export type ProxyContentCheck = {
 
 export type ProxyDNSCheck = {
   bashWSDomains: string[];
+  currentServer: string;
   dnsServerCount: number;
   dnsServers: DNSResponseServer[];
   conclusion: ENUM_DNSLeakCheck;
