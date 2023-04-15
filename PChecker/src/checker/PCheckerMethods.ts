@@ -330,9 +330,7 @@ export class PCheckerMethods {
    * @returns: Promise<any | Error>
    * Check if proxy injects something (scripts, ads, modified data, etc)
    */
-  protected async checkProxyContent(): Promise<
-    ProxyContentCheck | ProxyError
-  > {
+  protected async checkProxyContent(): Promise<ProxyContentCheck | ProxyError> {
     const timeoutPromise: Promise<ProxyContentCheck> =
       this.createTimeout("timedout");
 
@@ -457,9 +455,7 @@ export class PCheckerMethods {
    * @returns: Promise<any | Error>
    * Check if proxy works with google
    */
-  protected async checkProxyGoogleSupport(): Promise<
-    boolean | ProxyError
-  > {
+  protected async checkProxyGoogleSupport(): Promise<boolean | ProxyError> {
     const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
 
     const googleOptions = {
@@ -500,9 +496,7 @@ export class PCheckerMethods {
    * @returns: Promise<bool | Error>
    * Check if proxy server will cause a DNS leak (BASH.WS is goat)
    */
-  protected async checkProxyDNSLeak(): Promise<
-    ProxyDNSCheck | ProxyError
-  > {
+  protected async checkProxyDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
     const timeoutPromise: Promise<ProxyDNSCheck> =
       this.createTimeout("timedout");
 
@@ -545,34 +539,39 @@ export class PCheckerMethods {
           });
 
           response.on("end", () => {
-            const parsedData = JSON.parse(data);
+            try {
+              const parsedData = JSON.parse(data);
 
-            const dnsServers = parsedData.filter(
-              (server: DNSResponseServer) => server.type === "dns"
-            );
-            dnsLeakCheck.dnsServers = dnsServers;
+              const dnsServers = parsedData.filter(
+                (server: DNSResponseServer) => server.type === "dns"
+              );
+              dnsLeakCheck.dnsServers = dnsServers;
 
-            const dnsServersCount = dnsServers.length;
-            dnsLeakCheck.dnsServerCount = dnsServersCount;
+              const dnsServersCount = dnsServers.length;
+              dnsLeakCheck.dnsServerCount = dnsServersCount;
 
-            if (dnsServersCount === 0) {
-              console.log("No DNS servers found");
+              if (dnsServersCount === 0) {
+                console.log("No DNS servers found");
+                resolve({} as ProxyDNSCheck);
+              }
+
+              parsedData
+                .filter(
+                  (server: DNSResponseServer) => server.type === "conclusion"
+                )
+                .forEach((server: DNSResponseServer) => {
+                  if (server.ip === "DNS may be leaking.") {
+                    dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.PossibleDNSLeak;
+                  } else if (server.ip === "DNS is bot leaking.") {
+                    dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
+                  }
+                });
+
+              resolve(dnsLeakCheck);
+            } catch (error) {
+              console.log(`DNS Leak Check Error: ${error}`);
               resolve({} as ProxyDNSCheck);
             }
-
-            parsedData
-              .filter(
-                (server: DNSResponseServer) => server.type === "conclusion"
-              )
-              .forEach((server: DNSResponseServer) => {
-                if (server.ip === "DNS may be leaking.") {
-                  dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.PossibleDNSLeak;
-                } else if (server.ip === "DNS is bot leaking.") {
-                  dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
-                }
-              });
-
-            resolve(dnsLeakCheck);
           });
         });
       }
