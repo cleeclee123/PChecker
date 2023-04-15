@@ -11,4 +11,4 @@ def extract(proxy):
         print("error with proxy")
         pass
     
-print(extract("https://113.57.178.157:443"))
+print(extract("http://24.156.198.241:8080"))

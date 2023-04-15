@@ -1,6 +1,7 @@
 import os
 import subprocess
 import json
+import requests
 from random import randint
 from platform import system as system_name
 from subprocess import call as system_call
@@ -24,9 +25,10 @@ leak_id = randint(1000000, 9999999)
 for x in range(0, 10):
     ping('.'.join([str(x), str(leak_id), "bash.ws"]))
 
-response = urlopen("https://bash.ws/dnsleak/test/"+str(leak_id)+"?json")
-data = response.read().decode("utf-8")
-parsed_data = json.loads(data)
+proxy = "https://168.11.52.41:8080"
+response = requests.get("https://bash.ws/dnsleak/test/"+str(leak_id)+"?json", proxies={'https': proxy})
+parsed_data = response.json()   # .read().decode("utf-8")
+# parsed_data = json.loads(data)
 
 print("Your IP:")
 for dns_server in parsed_data:
