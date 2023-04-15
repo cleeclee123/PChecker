@@ -1,18 +1,24 @@
 "use-strict";
 
 import http from "http";
+import https from "https";
 import net from "net";
+import dns from "dns";
+import { promisify } from "util";
 import {
   ProxyOptions,
   ProxyError,
   ProxyInfoFromHttp,
   ProxyInfoFromHttps,
   ProxyContentCheck,
+  ProxyDNSCheck,
+  DNSResponseServer,
 } from "./types.js";
 import {
   ENUM_FlaggedHeaderValues,
   ENUM_ProxyAnonymity,
   ENUM_ERRORS,
+  ENUM_DNSLeakCheck,
 } from "./emuns.js";
 
 export class PChecker {
@@ -255,6 +261,7 @@ export class PChecker {
             ) {
               resolve({ error: ENUM_ERRORS.EmptySocketResponse } as ProxyError);
             }
+
             //this.socket_.destroy();
             resolve(httpsRequest);
           });
@@ -296,6 +303,8 @@ export class PChecker {
             console.log("socket status code ", httpsRequest.statusCode);
 
             // resolve right away if status code is not 200
+            // 403 status code may hint at https support with auth
+            // 500 status code may hint at https support
             if (httpsRequest.statusCode !== 200) {
               resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
             } else {
@@ -322,7 +331,7 @@ export class PChecker {
    * @returns: Promise<any | Error>
    * Check if proxy injects something (scripts, ads, modified data, etc)
    */
-  public async checkProxyContentPrivate(): Promise<
+  private async checkProxyContentPrivate(): Promise<
     ProxyContentCheck | ProxyError
   > {
     const timeoutPromise: Promise<ProxyContentCheck> =
@@ -457,7 +466,6 @@ export class PChecker {
     const googleOptions = {
       host: this.host_,
       port: Number(this.port_),
-      method: "GET",
       path: "https://www.google.com/",
       headers: {
         "User-Agent":
@@ -466,9 +474,11 @@ export class PChecker {
           ],
       },
     };
+
     const googlePromise: Promise<boolean | ProxyError> = new Promise(
       (resolve, reject) => {
         http.get(googleOptions, (res) => {
+          console.log(res.statusCode);
           if (res.statusCode !== 200) {
             resolve(false);
           } else {
@@ -491,7 +501,91 @@ export class PChecker {
    * @returns: Promise<bool | Error>
    * Check if proxy server will cause a DNS leak (BASH.WS is goat)
    */
-  private checkProxyDNSLeakPrivate() /* : Promise<any | Error> */ {}
+  private async checkProxyDNSLeakPrivate(): Promise<
+    ProxyDNSCheck | ProxyError
+  > {
+    const timeoutPromise: Promise<ProxyDNSCheck> =
+      this.createTimeout("timedout");
+
+    const dnsResolve = promisify(dns.resolve4);
+    async function ping(host: any) {
+      try {
+        await dnsResolve(host);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function generateRandomNumber(min: any, max: any) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    const dnsLeakPromise: Promise<ProxyDNSCheck | ProxyError> = new Promise(
+      async (resolve, reject) => {
+        const dnsLeakCheck = {} as ProxyDNSCheck;
+
+        const leakId = generateRandomNumber(1000000, 9999999);
+        let domains: string[] = [];
+        for (let x = 0; x < 10; x++) {
+          domains.push(`${x}.${leakId}.bash.ws`);
+          await ping(`${x}.${leakId}.bash.ws`);
+        }
+        dnsLeakCheck.bashWSDomains = domains;
+
+        const options = {
+          host: this.host_,
+          port: Number(this.port_),
+          path: `https://bash.ws/dnsleak/test/${leakId}?json`,
+        };
+
+        http.get(options, (response) => {
+          let data = "";
+          response.on("data", (chunk) => {
+            data += chunk;
+          });
+
+          response.on("end", () => {
+            const parsedData = JSON.parse(data);
+
+            const dnsServers = parsedData.filter(
+              (server: DNSResponseServer) => server.type === "dns"
+            );
+            dnsLeakCheck.dnsServers = dnsServers;
+
+            const dnsServersCount = dnsServers.length;
+            dnsLeakCheck.dnsServerCount = dnsServersCount;
+
+            if (dnsServersCount === 0) {
+              console.log("No DNS servers found");
+              resolve({} as ProxyDNSCheck);
+            }
+
+            parsedData
+              .filter(
+                (server: DNSResponseServer) => server.type === "conclusion"
+              )
+              .forEach((server: DNSResponseServer) => {
+                if (server.ip === "DNS may be leaking.") {
+                  dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.PossibleDNSLeak;
+                } else if (server.ip === "DNS is bot leaking.") {
+                  dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
+                }
+              });
+
+            resolve(dnsLeakCheck);
+          });
+        });
+      }
+    );
+
+    try {
+      return await Promise.race([dnsLeakPromise, timeoutPromise]);
+    } catch (error) {
+      console.log(`dns leak check PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+    }
+  }
 
   /**
    * @method: checkProxyWebRTCLeak, private helper function
@@ -514,15 +608,8 @@ export class PChecker {
             resolve(String(ip));
           });
 
-          // clear
-          resp.on("close", () => {
-            resp.destroy();
-          });
-
           resp.on("error", (err) => {
-            resp.destroy();
             console.log(`pip constructor ON-Error: ${err}`);
-
             resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
           });
         });
@@ -623,5 +710,17 @@ export class PChecker {
     this.clear();
 
     return contentCheck;
+  }
+
+  /**
+   * @method: checkDNSLeak()
+   * @returns Promise<ProxyDNSCheck | ProxyError>
+   * runs dns leak check
+   */
+  public async checkDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
+    const dnsLeakCheck = await this.checkProxyDNSLeakPrivate();
+    this.clear();
+
+    return dnsLeakCheck;
   }
 }

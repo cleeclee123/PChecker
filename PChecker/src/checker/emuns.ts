@@ -35,3 +35,8 @@ export enum ENUM_ERRORS {
   SocketError = "SocketError",
   EmptySocketResponse = "Empty Response",
 }
+
+export enum ENUM_DNSLeakCheck {
+  NoDNSLeak = 0,
+  PossibleDNSLeak = 1,
+}

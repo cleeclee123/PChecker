@@ -1,4 +1,8 @@
-import { ENUM_ProxyAnonymity, ENUM_ERRORS } from "./emuns.js";
+import {
+  ENUM_ProxyAnonymity,
+  ENUM_ERRORS,
+  ENUM_DNSLeakCheck,
+} from "./emuns.js";
 
 // optional type if location data is available
 export type ProxyLocation = {
@@ -81,4 +85,19 @@ export type ProxyContentCheck = {
   hasRedirect?: boolean;
   hasTracker?: boolean;
   hasMiner?: boolean;
+};
+
+export type ProxyDNSCheck = {
+  bashWSDomains: string[];
+  dnsServerCount: number;
+  dnsServers: DNSResponseServer[];
+  conclusion: ENUM_DNSLeakCheck;
+};
+
+export type DNSResponseServer = {
+  ip: string;
+  country: string;
+  country_name: string;
+  asn: string;
+  type: string;
 };
