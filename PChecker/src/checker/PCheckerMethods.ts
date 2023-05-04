@@ -690,11 +690,15 @@ export class PCheckerMethods {
 
   private updateOptions(): void {
     // when i implement sign up/login, this will be saved and run only once everyday for every user
-    this.publicIPAddress_ = this.publicIPAddress_;
+    if (this.publicIPAddress_ !== undefined) {
+      this.publicIPAddress_ = this.publicIPAddress_;
+    }
 
-    this.auth_ =
-      "Basic " +
-      Buffer.from(this.username_ + ":" + this.password_).toString("base64");
+    if (this.username_ !== undefined && this.password_ !== undefined) {
+      this.auth_ =
+        "Basic " +
+        Buffer.from(this.username_ + ":" + this.password_).toString("base64");
+    }
 
     this.optionspj_ = {
       host: this.host_,
