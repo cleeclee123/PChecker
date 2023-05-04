@@ -126,8 +126,6 @@ export class PCheckerMethods {
         let errorObject = {} as ProxyError;
         let startTime = new Date().getTime();
 
-        console.log(this.optionspj_);
-
         http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
             console.log(`httpRequest Bad Status Code`);
