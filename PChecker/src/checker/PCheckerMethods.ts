@@ -26,8 +26,10 @@ export class PCheckerMethods {
   public timeout_: number;
   protected optionspj_: ProxyOptions;
   protected optionstd_: ProxyOptions;
-  private publicIPAddress_: string | Promise<string | ProxyError>;
-  private auth_: string;
+  protected publicIPAddress_: string | Promise<string | ProxyError>;
+  protected username_: string; 
+  protected password_: string;
+  protected auth_: string;
   private timeoutsArray_: Array<Promise<any>>;
   private socket_: net.Socket;
 
@@ -47,9 +49,9 @@ export class PCheckerMethods {
   static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
   constructor(
-    host: string,
-    port: string,
-    timeout: string,
+    host?: string,
+    port?: string,
+    timeout?: string,
     publicIPAddress?: string | Promise<string | ProxyError>,
     username?: string,
     password?: string
@@ -57,6 +59,8 @@ export class PCheckerMethods {
     this.host_ = host;
     this.port_ = port;
     this.timeout_ = Number(timeout);
+    this.username_ = username;
+    this.password_ = password;
     this.optionspj_ = {} as ProxyOptions;
     this.optionstd_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
@@ -590,12 +594,49 @@ export class PCheckerMethods {
     }
   }
 
-  /**
-   * @method: checkProxyWebRTCLeak, private helper function
-   * @returns: Promise<bool | Error>
-   * Check if proxy server will cause a WebRTC leak (BASH.WS is goat)
-   */
-  protected checkProxyWebRTCLeak() /* : Promise<any | Error> */ {}
+  // /**
+  //  * @method: checkProxyWebRTCLeak, private helper function
+  //  * @returns: Promise<bool | Error>
+  //  * Check if proxy server will cause a WebRTC leak (BASH.WS is goat)
+  //  */
+  // protected async checkProxyWebRTCLeak(): Promise<boolean | ProxyError> {
+  //   const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
+
+  //   const endpointOptions = {
+  //     host: this.host_,
+  //     port: Number(this.port_),
+  //     path: "http://myproxyjudgeclee.software:8181/webleakcheck",
+  //     headers: {
+  //       "User-Agent":
+  //         PCheckerMethods.kUserAgents[
+  //           Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
+  //         ],
+  //     },
+  //   };
+
+  //   const webrtcCheckPromise: Promise<boolean | ProxyError> = new Promise(
+  //     (resolve, reject) => {
+  //       http.get(endpointOptions, (res) => {
+  //         console.log(res.statusCode);
+  //         if (res.statusCode !== 200) {
+  //           resolve(false);
+  //         } 
+
+  //         res.on("data", (data) => { 
+  //           console.log(data.toString());        
+  //         }); 
+
+  //       });
+  //     }
+  //   );
+
+  //   try {
+  //     return await Promise.race([webrtcCheckPromise, timeoutPromise]);
+  //   } catch (error) {
+  //     console.log(`google check PromiseRace Error: ${error}`);
+  //     return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+  //   }
+  // }
 
   /**
    * @method: getPublicIP(), private helper function

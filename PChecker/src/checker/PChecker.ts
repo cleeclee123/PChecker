@@ -9,14 +9,38 @@ import {
 
 export class PChecker extends PCheckerMethods {
   constructor(
-    host: string,
-    port: string,
-    timeout: string,
+    host?: string,
+    port?: string,
+    timeout?: string,
     publicIPAddress?: string | Promise<string | ProxyError>,
     username?: string,
     password?: string
   ) {
     super(host, port, timeout, publicIPAddress, username, password);
+  }
+
+  public setHost(host: string): void {
+    this.host_ = host;
+  }
+
+  public setPort(port: string): void {
+    this.port_ = port;
+  }
+
+  public setTimeout(timeout: number): void {
+    this.timeout_ = timeout;
+  }
+
+  public setPublicIP(ip: string): void {
+    this.publicIPAddress_ = ip;
+  }
+
+  public setUsername(username: string): void {
+    this.username_ = username;
+  }
+
+  public setPassword(password: string): void {
+    this.password_ = password;
   }
 
   /**
@@ -99,4 +123,15 @@ export class PChecker extends PCheckerMethods {
 
     return dnsLeakCheck;
   }
+
+  // /**
+  //  * @method: checkWebRTCLeak()
+  //  * runs webtrc leak check
+  //  */
+  // public async checkWebRTCLeak() {
+  //   const webrtcLeakCheck = await this.checkProxyWebRTCLeak();
+  //   this.clear();
+
+  //   return webrtcLeakCheck;
+  // }
 }
