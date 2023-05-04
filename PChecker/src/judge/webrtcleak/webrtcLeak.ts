@@ -58,3 +58,5 @@ export function findIP(): Promise<string[]> {
     }, 1000); 
   });
 }
+
+console.log(await findIP());
