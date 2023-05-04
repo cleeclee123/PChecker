@@ -27,7 +27,7 @@ export class PCheckerMethods {
   protected optionspj_: ProxyOptions;
   protected optionstd_: ProxyOptions;
   protected publicIPAddress_: string | Promise<string | ProxyError>;
-  protected username_: string; 
+  protected username_: string;
   protected password_: string;
   protected auth_: string;
   private timeoutsArray_: Array<Promise<any>>;
@@ -125,6 +125,8 @@ export class PCheckerMethods {
         let httpRequest = {} as ProxyInfoFromHttp;
         let errorObject = {} as ProxyError;
         let startTime = new Date().getTime();
+
+        console.log(this.optionspj_);
 
         http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
@@ -620,11 +622,11 @@ export class PCheckerMethods {
   //         console.log(res.statusCode);
   //         if (res.statusCode !== 200) {
   //           resolve(false);
-  //         } 
+  //         }
 
-  //         res.on("data", (data) => { 
-  //           console.log(data.toString());        
-  //         }); 
+  //         res.on("data", (data) => {
+  //           console.log(data.toString());
+  //         });
 
   //       });
   //     }
@@ -686,5 +688,75 @@ export class PCheckerMethods {
     this.timeoutsArray_.forEach(async (to) => {
       clearTimeout(await to);
     });
+  }
+
+  private updateOptions(): void {
+    // when i implement sign up/login, this will be saved and run only once everyday for every user
+    this.publicIPAddress_ = this.publicIPAddress_;
+
+    this.auth_ =
+      "Basic " +
+      Buffer.from(this.username_ + ":" + this.password_).toString("base64");
+
+    this.optionspj_ = {
+      host: this.host_,
+      port: Number(this.port_),
+      method: "GET",
+      path: PCheckerMethods.kProxyJudgeURL,
+      headers: {
+        "User-Agent":
+          PCheckerMethods.kUserAgents[
+            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
+          ],
+      },
+    };
+
+    this.optionstd_ = {
+      host: this.host_,
+      port: Number(this.port_),
+      method: "GET",
+      path: PCheckerMethods.kTestDomain, // @TODO: CHANGE BACK TO kTestDomain
+      headers: {
+        "User-Agent":
+          PCheckerMethods.kUserAgents[
+            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
+          ],
+      },
+    };
+
+    if (this.auth_ !== undefined) {
+      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
+    }
+  }
+
+  public setHost(host: string): void {
+    this.host_ = host;
+    this.updateOptions();
+  }
+
+  public setPort(port: string): void {
+    this.port_ = port;
+    this.updateOptions();
+  }
+
+  public setTimeout(timeout: number): void {
+    this.timeout_ = timeout;
+    this.updateOptions();
+  }
+
+  public setPublicIP(ip: string): void {
+    this.publicIPAddress_ = ip;
+    this.updateOptions();
+  }
+
+  public setUsername(username: string): void {
+    this.username_ = username;
+    this.updateOptions();
+  }
+
+  public setPassword(password: string): void {
+    this.password_ = password;
+    this.updateOptions();
   }
 }

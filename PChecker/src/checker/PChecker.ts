@@ -19,30 +19,6 @@ export class PChecker extends PCheckerMethods {
     super(host, port, timeout, publicIPAddress, username, password);
   }
 
-  public setHost(host: string): void {
-    this.host_ = host;
-  }
-
-  public setPort(port: string): void {
-    this.port_ = port;
-  }
-
-  public setTimeout(timeout: number): void {
-    this.timeout_ = timeout;
-  }
-
-  public setPublicIP(ip: string): void {
-    this.publicIPAddress_ = ip;
-  }
-
-  public setUsername(username: string): void {
-    this.username_ = username;
-  }
-
-  public setPassword(password: string): void {
-    this.password_ = password;
-  }
-
   /**
    * @method: checkAll()
    * @returns Promise<any>
