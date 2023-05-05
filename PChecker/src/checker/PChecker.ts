@@ -35,9 +35,12 @@ export class PChecker extends PCheckerMethods {
     const validResults = results.filter((result) => !(result instanceof Error));
 
     // clear all timeouts
-    this.clear();
+    this.clearTimeout();
 
-    return validResults;
+    const json1 = JSON.parse(JSON.stringify(validResults[0]));
+    const json2 = JSON.parse(JSON.stringify(validResults[1]));
+
+    return {"anonymity": json1["anonymity"], "rest": json1["responseTime"], "https": json2["response"]};
   }
 
   /**
@@ -47,7 +50,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
     const anomnityStatus = await this.checkProxyAnonymity();
-    this.clear();
+    this.clearTimeout();
 
     return anomnityStatus;
   }
@@ -59,7 +62,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
     const httpsStatus = await this.checkProxyHTTPSSupport();
-    this.clear();
+    this.clearTimeout();
 
     return httpsStatus;
   }
@@ -71,7 +74,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
     const contentCheck = await this.checkProxyContent();
-    this.clear();
+    this.clearTimeout();
 
     return contentCheck;
   }
@@ -83,7 +86,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkGoogle(): Promise<boolean | ProxyError> {
     const contentCheck = await this.checkProxyGoogleSupport();
-    this.clear();
+    this.clearTimeout();
 
     return contentCheck;
   }
@@ -95,9 +98,33 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
     const dnsLeakCheck = await this.checkProxyDNSLeak();
-    this.clear();
+    this.clearTimeout();
 
     return dnsLeakCheck;
+  }
+
+  /**
+   * @method: checkDNSLeak()
+   * @returns Promise<ProxyInfoEssential | ProxyError>
+   * returns only essential info
+   */
+  public async checkEssential(): Promise<any> {
+    const essential = await this.checkProxyEssential();
+    this.clearTimeout();
+
+    return essential;
+  }
+
+  /**
+   * @method: checkLocation()
+   * @returns Promise<ProxyLocation | ProxyError>
+   * returns geolocation data of proxy
+   */
+  public async checkLocation(): Promise<any> {
+    const geoLocation = await this.checkProxyLocation();
+    this.clearTimeout();
+
+    return geoLocation;
   }
 
   // /**
@@ -106,8 +133,10 @@ export class PChecker extends PCheckerMethods {
   //  */
   // public async checkWebRTCLeak() {
   //   const webrtcLeakCheck = await this.checkProxyWebRTCLeak();
-  //   this.clear();
+  //   this.cleartimeout();
 
   //   return webrtcLeakCheck;
   // }
+
+
 }
