@@ -6,13 +6,7 @@ import {
 
 // optional type if location data is available
 export type ProxyLocation = {
-  country: string;
-  region: string;
-  city: string;
-  zip: string;
-  location: Object;
-  tz: string;
-  isp: string;
+  data: JSON;
 };
 
 // type to check track of https status
@@ -101,4 +95,11 @@ export type DNSResponseServer = {
   country_name: string;
   asn: string;
   type: string;
+};
+
+export type ProxyInfoEssential = {
+  responseTime?: number;
+  anonymity?: ENUM_ProxyAnonymity;
+  https?: boolean;
+  connectResponseTime?: number;
 };
