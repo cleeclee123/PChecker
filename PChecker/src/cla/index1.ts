@@ -9,4 +9,4 @@ process.argv.forEach(async (val, index, array) => {
   else if (index === 4) checker.setTimeout(Number(val));
 });
 
-console.log(await checker.checkAnonymity());
+console.log(await checker.checkEssential());
