@@ -89,11 +89,11 @@ def check(proxy):
     split = proxy.split(":")
     if (checkPort(split[0], split[1])):
         if (checkHttps(proxy) and checkHttp(proxy)):
-            print(f'{proxy} both')
+            print(f'["{split[0]}", "{split[1]}"],')
         elif (checkHttps(proxy) and not checkHttp(proxy)):
-            print(f'{proxy} only https')
+            print(f'["{split[0]}", "{split[1]}"],')
         elif (checkHttp(proxy) and not checkHttps(proxy)):
-            print(f'{proxy} only http')
+            print(f'["{split[0]}", "{split[1]}"],')
             None
     else:
         #print("connection error")
