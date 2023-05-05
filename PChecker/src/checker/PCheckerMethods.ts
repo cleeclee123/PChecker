@@ -880,15 +880,56 @@ export class PCheckerMethods {
       }
     );
 
+    const requestOptions = {
+      host: this.host_,
+      port: Number(this.port_),
+      path: `http://ip-api.com/json/${this.host_}`,
+      headers: {
+        "User-Agent":
+          PCheckerMethods.kUserAgents[
+            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
+          ],
+      },
+    };
+
+    const geolocationPromise: Promise<any | ProxyError> = new Promise(
+      (resolve, reject) => {
+        http.get(requestOptions, (res) => {
+          // console.log(res.statusCode);
+          if (res.statusCode !== 200) {
+            resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
+          }
+
+          res.setEncoding("utf8");
+          let responseData = [] as string[];
+          res.on("data", (data) => {
+            responseData.push(data);
+          });
+
+          res.on("end", () => {
+            try {
+              const json: any = JSON.parse(responseData.join(""));
+              if (json.hasOwnProperty("countryCode")) {
+                resolve({ countryCode: json["countryCode"] });
+              } else {
+                resolve({ error: ENUM_ERRORS.JSONParseError } as ProxyError);
+              }
+            } catch (error) {
+              resolve({ error: ENUM_ERRORS.JSONParseError } as ProxyError);
+            }
+          });
+        });
+      }
+    );
+
     // race between timeout and httpsCheck
     try {
-      const promises = [responseAnonymity, responseHTTPS];
+      const promises = [responseAnonymity, responseHTTPS, geolocationPromise];
       const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
       const validResults = results.filter(
         (result) => !(result instanceof Error)
       );
-
-      const essentialInfo = Object.assign({}, validResults[0], validResults[1]);
+      const essentialInfo = Object.assign({}, validResults[0], validResults[1], validResults[2]);
 
       return await Promise.race([timeoutPromise, essentialInfo]);
     } catch (error) {
