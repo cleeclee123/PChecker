@@ -24,7 +24,7 @@ const logger = createLogger({
 });
 
 export class PCheckerEssential extends PCheckerBase {
-  private socket_: net.Socket;
+  private socketEssential_: net.Socket;
 
   constructor(
     host?: string,
@@ -37,7 +37,7 @@ export class PCheckerEssential extends PCheckerBase {
     super(host, port, timeout, publicIPAddress, username, password);
   }
 
-  private async checkProxyAnonymity(): Promise<
+  private async checkProxyAnonymityEssential(): Promise<
     ProxyInfoEssential | ProxyError
   > {
     return new Promise<ProxyInfoEssential | ProxyError>((resolve) => {
@@ -135,7 +135,7 @@ export class PCheckerEssential extends PCheckerBase {
       const buffers = [] as Buffer[];
 
       const socketConnect = () => {
-        this.socket_ = net.connect({
+        this.socketEssential_ = net.connect({
           host: this.host_,
           port: Number(this.port_),
         });
@@ -145,8 +145,8 @@ export class PCheckerEssential extends PCheckerBase {
           this.port_
         )} HTTP/1.1\r\n`;
 
-        this.socket_.on("connect", () => {
-          this.socket_.write(`${payload}\r\n`);
+        this.socketEssential_.on("connect", () => {
+          this.socketEssential_.write(`${payload}\r\n`);
         });
 
         // dont need to buffer any traffic before proxy connect
@@ -155,7 +155,7 @@ export class PCheckerEssential extends PCheckerBase {
         onData();
 
         // check response at socket end
-        this.socket_.on("end", () => {
+        this.socketEssential_.on("end", () => {
           // handle empty response here
           logger.info(`checkProxyHTTPS empty response: https not supported`);
           if (proxyInfo.https === undefined || !proxyInfo.https) {
@@ -164,24 +164,24 @@ export class PCheckerEssential extends PCheckerBase {
         });
 
         // resolve when socket is close, we destory after seeing sucessful status code
-        this.socket_.on("close", () => {
+        this.socketEssential_.on("close", () => {
           proxyInfo.connectResponseTime = new Date().getTime() - startTime;
           if (Object.keys(errorObject).length !== 0) resolve(errorObject);
           else resolve(proxyInfo);
         });
 
         // todo: better/more specifc error handling
-        this.socket_.on("error", (error) => {
+        this.socketEssential_.on("error", (error) => {
           errorObject.error = ENUM_ERRORS.SocketError;
           logger.error(`getProxyLocation connect error: ${error}`);
 
-          this.socket_.destroy();
+          this.socketEssential_.destroy();
         });
       };
 
       // shamelessly taken from https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts
       const onData = () => {
-        this.socket_.on("data", (chuck: Buffer) => {
+        this.socketEssential_.on("data", (chuck: Buffer) => {
           // console.log(chuck.toLocaleString());
           buffers.push(chuck);
           buffersLength += chuck.length;
@@ -217,7 +217,7 @@ export class PCheckerEssential extends PCheckerBase {
           if (statusCode[0] === "2") proxyInfo.https = true;
           else proxyInfo.https = false;
 
-          this.socket_.destroy();
+          this.socketEssential_.destroy();
         });
       };
 
@@ -301,7 +301,7 @@ export class PCheckerEssential extends PCheckerBase {
     // race between timeout and promises
     try {
       const promises: Promise<ProxyInfoEssential | ProxyError>[] = [
-        this.checkProxyAnonymity(),
+        this.checkProxyAnonymityEssential(),
         this.checkProxyHTTPS(),
         this.getProxyLocation(),
       ];

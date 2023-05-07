@@ -12,7 +12,6 @@ import {
   ProxyContentCheck,
   ProxyDNSCheck,
   DNSResponseServer,
-  ProxyInfoEssential,
   ProxyLocation,
 } from "./types.js";
 import {
@@ -21,34 +20,18 @@ import {
   ENUM_ERRORS,
   ENUM_DNSLeakCheck,
 } from "./emuns.js";
+import { PCheckerBase } from "./PCheckerBase.js";
 
-export class PCheckerMethods {
-  public host_: string;
-  public port_: string;
-  public timeout_: number;
-  protected optionspj_: ProxyOptions;
-  protected optionstd_: ProxyOptions;
-  protected publicIPAddress_: string | Promise<string | ProxyError>;
-  protected username_: string;
-  protected password_: string;
-  protected auth_: string;
-  private timeoutsArray_: Array<Promise<any>>;
+export class PCheckerMethods extends PCheckerBase {
   private socket_: net.Socket;
+  private optionsTestDomain_: ProxyOptions;
 
-  static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
-  static readonly kTestDomain: string = `http://myproxyjudgeclee.software/index.html`;
-
-  static readonly kUserAgents: string[] = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
-    "Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36",
-  ];
+  // test endpoint
+  private static readonly kTestDomain: string = `http://myproxyjudgeclee.software/index.html`;
 
   // injection testing
-  static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
-  static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
+  // private static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
+  // private static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
   constructor(
     host?: string,
@@ -58,43 +41,13 @@ export class PCheckerMethods {
     username?: string,
     password?: string
   ) {
-    this.host_ = host;
-    this.port_ = port;
-    this.timeout_ = Number(timeout);
-    this.username_ = username;
-    this.password_ = password;
-    this.optionspj_ = {} as ProxyOptions;
-    this.optionstd_ = {} as ProxyOptions;
-    this.timeoutsArray_ = [] as Array<Promise<any>>;
+    super(host, port, timeout, publicIPAddress, username, password);
 
-    // when i implement sign up/login, this will be saved and run only once everyday for every user
-    publicIPAddress !== undefined
-      ? (this.publicIPAddress_ = publicIPAddress)
-      : (this.publicIPAddress_ = this.getPublicIP());
-
-    username !== undefined && password !== undefined
-      ? (this.auth_ =
-          "Basic " + Buffer.from(username + ":" + password).toString("base64"))
-      : (this.auth_ = undefined);
-
-    this.optionspj_ = {
+    this.optionsTestDomain_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerMethods.kProxyJudgeURL,
-      headers: {
-        "User-Agent":
-          PCheckerMethods.kUserAgents[
-            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
-          ],
-      },
-    };
-
-    this.optionstd_ = {
-      host: this.host_,
-      port: Number(this.port_),
-      method: "GET",
-      path: PCheckerMethods.kTestDomain, // @TODO: CHANGE BACK TO kTestDomain
+      path: PCheckerMethods.kTestDomain, 
       headers: {
         "User-Agent":
           PCheckerMethods.kUserAgents[
@@ -104,8 +57,7 @@ export class PCheckerMethods {
     };
 
     if (this.auth_ !== undefined) {
-      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
-      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
+      this.optionsTestDomain_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
@@ -352,7 +304,7 @@ export class PCheckerMethods {
       (resolve, reject) => {
         let errorObject = {} as ProxyError;
 
-        http.get(this.optionstd_, (res) => {
+        http.get(this.optionsTestDomain_, (res) => {
           if (res.statusCode !== 200) {
             // console.log(`httpRequest Bad Status Code ${res.statusCode}`);
             errorObject.error = ENUM_ERRORS.StatusCodeError;
@@ -696,369 +648,4 @@ export class PCheckerMethods {
   //     return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
   //   }
   // }
-
-  /**
-   * @method: checkProxyEssential(),
-   * @returns: Promise<Object | Error>
-   * Check essential proxy info
-   */
-  protected async checkProxyEssential() /* : Promise<Object | ProxyError>  */ {
-    const timeoutPromise: Promise<ProxyInfoFromHttp> =
-      this.createTimeout("timedout");
-
-    let resolvedPIP = await this.publicIPAddress_;
-
-    const responseAnonymity: Promise<ProxyInfoEssential | ProxyError> =
-      new Promise((resolve, reject) => {
-        const proxyInfo = {} as ProxyInfoEssential;
-        let errorObject = {} as ProxyError;
-        let startTime = new Date().getTime();
-
-        http.get(this.optionspj_, (res) => {
-          if (res.statusCode !== 200) {
-            // console.log(`httpRequest Bad Status Code`);
-            errorObject.error = ENUM_ERRORS.StatusCodeError;
-
-            resolve(errorObject);
-          }
-
-          let body = [] as any[];
-          res.on("data", (chunk) => {
-            body.push(chunk);
-          });
-
-          res.on("close", () => {
-            proxyInfo.responseTime = new Date().getTime() - startTime;
-          });
-
-          res.on("end", () => {
-            try {
-              const headers = JSON.parse(Buffer.concat(body).toString());
-
-              let pipCount = 0;
-              let toFlag: any[] = [];
-              Object.keys(headers).forEach(async (key) => {
-                if (key in ENUM_FlaggedHeaderValues) {
-                  if (
-                    resolvedPIP !== undefined ||
-                    resolvedPIP !== ({} as any)
-                  ) {
-                    if (
-                      String(headers[key as keyof JSON]) === String(resolvedPIP)
-                    ) {
-                      pipCount++;
-                    }
-                  } else if (
-                    Object.keys(resolvedPIP).length === 0 &&
-                    resolvedPIP.constructor === Object
-                  ) {
-                    proxyInfo.anonymity = undefined;
-                  }
-                  pipCount === 0
-                    ? (proxyInfo.anonymity = ENUM_ProxyAnonymity.Anonymous)
-                    : (proxyInfo.anonymity = ENUM_ProxyAnonymity.Transparent);
-                  toFlag.push(key);
-                }
-
-                if (toFlag.length === 0) {
-                  proxyInfo.anonymity = ENUM_ProxyAnonymity.Elite;
-                }
-              });
-            } catch (error) {
-              res.destroy();
-              // console.log(`httpRequest JSON Parse Error: ${error}`);
-              errorObject.error = ENUM_ERRORS.JSONParseError;
-
-              resolve(errorObject);
-            }
-
-            resolve(proxyInfo);
-          });
-
-          res.on("error", (error) => {
-            // console.log(`httpRequest ON-Error: ${error}`);
-            errorObject.error = ENUM_ERRORS.ConnectionError;
-
-            resolve(errorObject);
-          });
-        });
-      });
-
-    const responseHTTPS: Promise<ProxyInfoEssential | ProxyError> = new Promise(
-      (resolve, reject) => {
-        let proxyInfo = {} as ProxyInfoEssential;
-        let startTime = new Date().getTime();
-        let buffersLength: number = 0;
-        const buffers = [] as Buffer[];
-
-        const socketConnect = () => {
-          this.socket_ = net.connect({
-            host: this.host_,
-            port: Number(this.port_),
-          });
-
-          // requests a http tunnel to be open https://en.wikipedia.org/wiki/HTTP_tunnel
-          let payload = `CONNECT ${this.host_}:${Number(
-            this.port_
-          )} HTTP/1.1\r\n`;
-
-          this.socket_.on("connect", () => {
-            this.socket_.write(`${payload}\r\n`);
-            // console.log("socket connected");
-          });
-
-          // dont need to buffer any traffic before proxy connect
-          // onData will reject all non-200 res from server =>
-          // meaning/confirming server has no https support
-          onData();
-
-          // handle everything else below:
-          // check response at socket end
-          this.socket_.on("end", () => {});
-
-          // resolve when socket is close, we destory after seeing sucessful status code
-          this.socket_.on("close", () => {
-            proxyInfo.connectResponseTime = new Date().getTime() - startTime;
-
-            // handle empty response here
-            if (proxyInfo.https == undefined) {
-              proxyInfo.https = false;
-            }
-
-            resolve(proxyInfo);
-          });
-
-          // todo: better/more specifc error handling
-          this.socket_.on("error", (error) => {
-            this.socket_.destroy();
-            resolve({ error: ENUM_ERRORS.SocketError } as ProxyError);
-          });
-        };
-
-        // shamelessly taken from https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts
-        const onData = () => {
-          this.socket_.on("data", (chuck: Buffer) => {
-            // console.log(chuck.toLocaleString());
-            buffers.push(chuck);
-            buffersLength += chuck.length;
-
-            const buffered = Buffer.concat(buffers, buffersLength);
-            const endOfHeaders = buffered.indexOf("\r\n\r\n");
-
-            // will contine to buffer
-            if (endOfHeaders === -1) {
-              return;
-            }
-
-            // parse actual response, usually something like: "HTTP/1.1 200 Connection established"
-            const response = buffered.toString(
-              "ascii",
-              0,
-              buffered.indexOf("\r\n")
-            );
-
-            // parse status code from response
-            const statusCode = Number(+response.split(" ")[1]);
-
-            // console.log("socket status code ", httpsRequest.statusCode);
-
-            // resolve right away if status code is not 200
-            // 403 status code may hint at https support with auth
-            // 500 status code may hint at https support
-            if (statusCode !== 200) {
-              proxyInfo.https = false;
-              this.socket_.destroy();
-            } else {
-              // handle 200 res on close
-              proxyInfo.https = true;
-              this.socket_.destroy();
-            }
-          });
-        };
-
-        socketConnect();
-      }
-    );
-
-    const requestOptions = {
-      host: this.host_,
-      port: Number(this.port_),
-      path: `http://ip-api.com/json/${this.host_}`,
-      headers: {
-        "User-Agent":
-          PCheckerMethods.kUserAgents[
-            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
-          ],
-      },
-    };
-
-    const geolocationPromise: Promise<any | ProxyError> = new Promise(
-      (resolve, reject) => {
-        http.get(requestOptions, (res) => {
-          // console.log(res.statusCode);
-          if (res.statusCode !== 200) {
-            resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
-          }
-
-          res.setEncoding("utf8");
-          let responseData = [] as string[];
-          res.on("data", (data) => {
-            responseData.push(data);
-          });
-
-          res.on("end", () => {
-            try {
-              const json: any = JSON.parse(responseData.join(""));
-              if (json.hasOwnProperty("countryCode")) {
-                resolve({ countryCode: json["countryCode"] });
-              } else {
-                resolve({ error: ENUM_ERRORS.JSONParseError } as ProxyError);
-              }
-            } catch (error) {
-              resolve({ error: ENUM_ERRORS.JSONParseError } as ProxyError);
-            }
-          });
-        });
-      }
-    );
-
-    // race between timeout and httpsCheck
-    try {
-      const promises = [responseAnonymity, responseHTTPS, geolocationPromise];
-      const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
-      const validResults = results.filter(
-        (result) => !(result instanceof Error)
-      );
-      const essentialInfo = Object.assign({}, validResults[0], validResults[1], validResults[2]);
-
-      return await Promise.race([timeoutPromise, essentialInfo]);
-    } catch (error) {
-      // console.log(`httpRequest PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
-    }
-  }
-
-  /**
-   * @method: getPublicIP(), private helper function
-   * @returns Promise<String | Error>
-   * Gets Your Public IP Address
-   */
-  private getPublicIP(): Promise<string | ProxyError> {
-    const timeoutPromise: Promise<string> = this.createTimeout("timedout");
-    const pipPromise: Promise<string | ProxyError> = new Promise(
-      (resolve, reject) => {
-        http.get({ host: "api.ipify.org", port: 80, path: "/" }, (resp) => {
-          resp.on("data", (ip) => {
-            resolve(String(ip));
-          });
-
-          resp.on("error", (err) => {
-            // console.log(`pip constructor ON-Error: ${err}`);
-            resolve({ error: ENUM_ERRORS.ConnectionError } as ProxyError);
-          });
-        });
-      }
-    );
-
-    // abiding readiness pattern, returning a promise
-    // not awaiting promise here will need to handle this in run()
-    try {
-      return Promise.race([pipPromise, timeoutPromise]);
-    } catch (error) {
-      this.publicIPAddress_ = new Promise((resolve) => {
-        resolve({ error: ENUM_ERRORS.PromiseRaceError } as ProxyError);
-      });
-    }
-  }
-
-  // function creates timeout, mem is managed by clearTimeouts()
-  private createTimeout<T>(data: any) {
-    const timeoutPromise: Promise<T> = new Promise((resolve) =>
-      setTimeout(() => resolve({ timeoutdata: data } as T), this.timeout_)
-    );
-    this.timeoutsArray_.push(timeoutPromise);
-
-    return timeoutPromise;
-  }
-
-  // timeout memory management
-  protected clearTimeout(): void {
-    this.timeoutsArray_.forEach(async (to) => {
-      clearTimeout(await to);
-    });
-  }
-
-  private updateOptions(): void {
-    // when i implement sign up/login, this will be saved and run only once everyday for every user
-    if (this.publicIPAddress_ !== undefined) {
-      this.publicIPAddress_ = this.publicIPAddress_;
-    }
-
-    if (this.username_ !== undefined && this.password_ !== undefined) {
-      this.auth_ =
-        "Basic " +
-        Buffer.from(this.username_ + ":" + this.password_).toString("base64");
-    }
-
-    this.optionspj_ = {
-      host: this.host_,
-      port: Number(this.port_),
-      method: "GET",
-      path: PCheckerMethods.kProxyJudgeURL,
-      headers: {
-        "User-Agent":
-          PCheckerMethods.kUserAgents[
-            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
-          ],
-      },
-    };
-
-    this.optionstd_ = {
-      host: this.host_,
-      port: Number(this.port_),
-      method: "GET",
-      path: PCheckerMethods.kTestDomain, // @TODO: CHANGE BACK TO kTestDomain
-      headers: {
-        "User-Agent":
-          PCheckerMethods.kUserAgents[
-            Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
-          ],
-      },
-    };
-
-    if (this.auth_ !== undefined) {
-      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
-      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
-    }
-  }
-
-  public setHost(host: string): void {
-    this.host_ = host;
-    this.updateOptions();
-  }
-
-  public setPort(port: string): void {
-    this.port_ = port;
-    this.updateOptions();
-  }
-
-  public setTimeout(timeout: number): void {
-    this.timeout_ = timeout;
-    this.updateOptions();
-  }
-
-  public setPublicIP(ip: string): void {
-    this.publicIPAddress_ = ip;
-    this.updateOptions();
-  }
-
-  public setUsername(username: string): void {
-    this.username_ = username;
-    this.updateOptions();
-  }
-
-  public setPassword(password: string): void {
-    this.password_ = password;
-    this.updateOptions();
-  }
 }

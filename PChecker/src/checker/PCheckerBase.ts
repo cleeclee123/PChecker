@@ -18,11 +18,10 @@ const logger = createLogger({
 });
 
 export class PCheckerBase {
-  public host_: string;
-  public port_: string;
-  public timeout_: number;
+  protected host_: string;
+  protected port_: string;
+  protected timeout_: number;
   protected optionspj_: ProxyOptions;
-  protected optionstd_: ProxyOptions;
   protected publicIPAddress_: string | Promise<string | ProxyError>;
   protected username_: string;
   protected password_: string;
@@ -53,7 +52,6 @@ export class PCheckerBase {
     this.username_ = username;
     this.password_ = password;
     this.optionspj_ = {} as ProxyOptions;
-    this.optionstd_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
     // when i implement sign up/login, this will be saved and run only once everyday for every user
@@ -81,7 +79,6 @@ export class PCheckerBase {
 
     if (this.auth_ !== undefined) {
       this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
-      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
@@ -207,36 +204,35 @@ export class PCheckerBase {
 
     if (this.auth_ !== undefined) {
       this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
-      this.optionstd_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
-  public setHost(host: string): void {
+  protected setHost(host: string): void {
     this.host_ = host;
     this.updateOptions();
   }
 
-  public setPort(port: string): void {
+  protected setPort(port: string): void {
     this.port_ = port;
     this.updateOptions();
   }
 
-  public setTimeout(timeout: number): void {
+  protected setTimeout(timeout: number): void {
     this.timeout_ = timeout;
     this.updateOptions();
   }
 
-  public setPublicIP(ip: string): void {
+  protected setPublicIP(ip: string): void {
     this.publicIPAddress_ = ip;
     this.updateOptions();
   }
 
-  public setUsername(username: string): void {
+  protected setUsername(username: string): void {
     this.username_ = username;
     this.updateOptions();
   }
 
-  public setPassword(password: string): void {
+  protected setPassword(password: string): void {
     this.password_ = password;
     this.updateOptions();
   }
