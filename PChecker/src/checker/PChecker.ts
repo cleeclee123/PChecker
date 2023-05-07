@@ -1,13 +1,42 @@
 import { PCheckerMethods } from "./PCheckerMethods.js";
+import { PCheckerEssential } from "./PCheckerEssential.js";
+import { PCheckerBase } from "./PCheckerBase.js";
 import {
+  ProxyInfoEssential,
   ProxyError,
   ProxyInfoFromHttp,
   ProxyInfoFromHttps,
   ProxyContentCheck,
   ProxyDNSCheck,
+  ProxyLocation,
 } from "./types.js";
 
-export class PChecker extends PCheckerMethods {
+function applyMixins(derivedCtor: any, baseCtors: any[]) {
+  baseCtors.forEach((baseCtor) => {
+    Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
+      if (name !== "constructor") {
+        derivedCtor.prototype[name] = baseCtor.prototype[name];
+      }
+    });
+  });
+}
+
+class PCheckerMixin extends PCheckerBase {
+  constructor(
+    host?: string,
+    port?: string,
+    timeout?: string,
+    publicIPAddress?: string | Promise<string | ProxyError>,
+    username?: string,
+    password?: string
+  ) {
+    super(host, port, timeout, publicIPAddress, username, password);
+  }
+}
+interface PCheckerMixin extends PCheckerMethods, PCheckerEssential {}
+applyMixins(PCheckerMixin, [PCheckerMethods, PCheckerEssential]);
+
+export class PChecker extends PCheckerMixin {
   constructor(
     host?: string,
     port?: string,
@@ -20,37 +49,13 @@ export class PChecker extends PCheckerMethods {
   }
 
   /**
-   * @method: checkAll()
-   * @returns Promise<any>
-   * runs both anomnity and https check
-   */
-  public async checkAll(): Promise<any> {
-    // promise all error: will only return valid resolved promises
-    const promises = [
-      this.checkProxyAnonymity(),
-      this.checkProxyHTTPSSupport(),
-    ];
-
-    const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
-    const validResults = results.filter((result) => !(result instanceof Error));
-
-    // clear all timeouts
-    this.clearTimeout();
-
-    const json1 = JSON.parse(JSON.stringify(validResults[0]));
-    const json2 = JSON.parse(JSON.stringify(validResults[1]));
-
-    return {"anonymity": json1["anonymity"], "rest": json1["responseTime"], "https": json2["response"]};
-  }
-
-  /**
    * @method: checkAnonymity()
    * @returns Promise<ProxyInfoFromHttp | ProxyError>
    * runs anomnity check
    */
   public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
     const anomnityStatus = await this.checkProxyAnonymity();
-    this.clearTimeout();
+    this.clearTimeouts();
 
     return anomnityStatus;
   }
@@ -62,7 +67,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
     const httpsStatus = await this.checkProxyHTTPSSupport();
-    this.clearTimeout();
+    this.clearTimeouts();
 
     return httpsStatus;
   }
@@ -74,7 +79,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
     const contentCheck = await this.checkProxyContent();
-    this.clearTimeout();
+    this.clearTimeouts();
 
     return contentCheck;
   }
@@ -86,7 +91,7 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkGoogle(): Promise<boolean | ProxyError> {
     const contentCheck = await this.checkProxyGoogleSupport();
-    this.clearTimeout();
+    this.clearTimeouts();
 
     return contentCheck;
   }
@@ -98,45 +103,32 @@ export class PChecker extends PCheckerMethods {
    */
   public async checkDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
     const dnsLeakCheck = await this.checkProxyDNSLeak();
-    this.clearTimeout();
+    this.clearTimeouts();
 
     return dnsLeakCheck;
   }
 
   /**
-   * @method: checkDNSLeak()
-   * @returns Promise<ProxyInfoEssential | ProxyError>
-   * returns only essential info
+   * @method: checkLocation()
+   * @returns Promise<ProxyLocation | ProxyError>
+   * fetch proxy location from ip-api.com
    */
-  public async checkEssential(): Promise<any> {
-    const essential = await this.checkProxyEssential();
-    this.clearTimeout();
+  public async checkLocation(): Promise<ProxyLocation | ProxyError> {
+    const geolocation = await this.checkProxyLocation();
+    this.clearTimeouts();
 
-    return essential;
+    return geolocation;
   }
 
   /**
-   * @method: checkLocation()
-   * @returns Promise<ProxyLocation | ProxyError>
-   * returns geolocation data of proxy
+   * @method: checkEssential()
+   * @returns Promise<ProxyInfoEssential | ProxyError>
+   * returns only essential info
    */
-  public async checkLocation(): Promise<any> {
-    const geoLocation = await this.checkProxyLocation();
-    this.clearTimeout();
+  public async checkEssential(): Promise<ProxyInfoEssential | ProxyError> {
+    const essential = await this.checkProxyEssential();
+    this.clearTimeouts();
 
-    return geoLocation;
+    return essential;
   }
-
-  // /**
-  //  * @method: checkWebRTCLeak()
-  //  * runs webtrc leak check
-  //  */
-  // public async checkWebRTCLeak() {
-  //   const webrtcLeakCheck = await this.checkProxyWebRTCLeak();
-  //   this.cleartimeout();
-
-  //   return webrtcLeakCheck;
-  // }
-
-
 }
