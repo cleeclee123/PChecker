@@ -102,4 +102,5 @@ export type ProxyInfoEssential = {
   anonymity?: ENUM_ProxyAnonymity;
   https?: boolean;
   connectResponseTime?: number;
+  countryCode?: string;
 };

@@ -34,6 +34,7 @@ export enum ENUM_ERRORS {
   PromiseRaceError = "PromiseRaceError",
   SocketError = "SocketError",
   EmptySocketResponse = "Empty Response",
+  GeoLocationError = "GeoLocationError",
 }
 
 export enum ENUM_DNSLeakCheck {
