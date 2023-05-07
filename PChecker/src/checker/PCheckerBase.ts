@@ -207,32 +207,32 @@ export class PCheckerBase {
     }
   }
 
-  protected setHost(host: string): void {
+  public setHost(host: string): void {
     this.host_ = host;
     this.updateOptions();
   }
 
-  protected setPort(port: string): void {
+  public setPort(port: string): void {
     this.port_ = port;
     this.updateOptions();
   }
 
-  protected setTimeout(timeout: number): void {
+  public setTimeout(timeout: number): void {
     this.timeout_ = timeout;
     this.updateOptions();
   }
 
-  protected setPublicIP(ip: string): void {
+  public setPublicIP(ip: string): void {
     this.publicIPAddress_ = ip;
     this.updateOptions();
   }
 
-  protected setUsername(username: string): void {
+  public setUsername(username: string): void {
     this.username_ = username;
     this.updateOptions();
   }
 
-  protected setPassword(password: string): void {
+  public setPassword(password: string): void {
     this.password_ = password;
     this.updateOptions();
   }
