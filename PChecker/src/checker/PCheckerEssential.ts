@@ -282,6 +282,10 @@ export class PCheckerEssential extends PCheckerBase {
    * @method: checkProxyEssential(),
    * @returns: Promise<Object | Error>
    * Check essential proxy info
+   * @todo: ADD MORE ERROR HANDLING
+   *  - more information error messages on each property
+   *  - handle multiple errors on concurrenct promises (promise all)
+   *  - timeout handling 
    */
   protected async checkProxyEssential() /* : Promise<ProxyInfoEssential | ProxyError> */ {
     const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
