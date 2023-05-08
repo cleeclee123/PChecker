@@ -10,19 +10,6 @@ import {
   ENUM_ERRORS,
 } from "./emuns.js";
 
-import { createLogger, transports, format } from "winston";
-
-const logger = createLogger({
-  transports: [new transports.Console()],
-  format: format.combine(
-    format.colorize(),
-    format.timestamp(),
-    format.printf(({ timestamp, level, message }) => {
-      return `[${timestamp}] ${level}: ${message}`;
-    })
-  ),
-});
-
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
 
@@ -48,7 +35,7 @@ export class PCheckerEssential extends PCheckerBase {
       http.get(this.optionspj_, (res) => {
         if (res.statusCode !== 200) {
           errorObject.error = ENUM_ERRORS.StatusCodeError;
-          logger.error(`checkProxyAnonymity status code: ${res.statusCode}`);
+          this.logger_.error(`checkProxyAnonymity status code: ${res.statusCode}`);
 
           res.destroy();
         }
@@ -104,7 +91,7 @@ export class PCheckerEssential extends PCheckerBase {
                 : proxyInfoAnonymity;
           } catch (error) {
             errorObject.error = ENUM_ERRORS.JSONParseError;
-            logger.error(`checkProxyAnonymity JSON parse error: ${error}`);
+            this.logger_.error(`checkProxyAnonymity JSON parse error: ${error}`);
           }
 
           res.destroy();
@@ -112,7 +99,7 @@ export class PCheckerEssential extends PCheckerBase {
 
         res.on("error", (error) => {
           errorObject.error = ENUM_ERRORS.SocketError;
-          logger.error(`checkProxyAnonymity socket error: ${error}`);
+          this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
 
           res.destroy();
         });
@@ -157,7 +144,7 @@ export class PCheckerEssential extends PCheckerBase {
         // check response at socket end
         this.socketEssential_.on("end", () => {
           // handle empty response here
-          logger.info(`checkProxyHTTPS empty response: https not supported`);
+          this.logger_.info(`checkProxyHTTPS empty response: https not supported`);
           if (proxyInfo.https === undefined || !proxyInfo.https) {
             proxyInfo.https = false;
           }
@@ -173,7 +160,7 @@ export class PCheckerEssential extends PCheckerBase {
         // todo: better/more specifc error handling
         this.socketEssential_.on("error", (error) => {
           errorObject.error = ENUM_ERRORS.SocketError;
-          logger.error(`getProxyLocation connect error: ${error}`);
+          this.logger_.error(`getProxyLocation connect error: ${error}`);
 
           this.socketEssential_.destroy();
         });
@@ -206,12 +193,12 @@ export class PCheckerEssential extends PCheckerBase {
 
           // 403 status code may hint at https support with auth
           // 500 status code may hint at https support
-          logger.info(`checkProxyHTTPS statusCode: ${statusCode}`);
+          this.logger_.info(`checkProxyHTTPS statusCode: ${statusCode}`);
           if (statusCode === "403" || statusCode === "401")
-            logger.warn(`auth may be required`);
-          else if (statusCode[0] === "4") logger.warn(`not support generally`);
+            this.logger_.warn(`auth may be required`);
+          else if (statusCode[0] === "4") this.logger_.warn(`not support generally`);
           else if (statusCode[0] === "5")
-            logger.warn(`proxy server error, probably no https support`);
+            this.logger_.warn(`proxy server error, probably no https support`);
 
           // check if digit of status code from CONNECT request
           if (statusCode[0] === "2") proxyInfo.https = true;
@@ -246,7 +233,7 @@ export class PCheckerEssential extends PCheckerBase {
       http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
           errorObject.error = ENUM_ERRORS.StatusCodeError;
-          logger.error(`getProxyLocation bad status code: ${res.statusCode}`);
+          this.logger_.error(`getProxyLocation bad status code: ${res.statusCode}`);
           res.destroy();
         }
 
@@ -264,25 +251,25 @@ export class PCheckerEssential extends PCheckerBase {
               res.destroy();
             } else {
               errorObject.error = ENUM_ERRORS.GeoLocationError;
-              logger.error(`getProxyLocation doesnt have county code`);
+              this.logger_.error(`getProxyLocation doesnt have county code`);
               res.destroy();
             }
           } catch (error) {
             errorObject.error = ENUM_ERRORS.JSONParseError;
-            logger.error(`getProxyLocation JSON Parse Error`);
+            this.logger_.error(`getProxyLocation JSON Parse Error`);
             res.destroy();
           }
         });
 
         res.on("error", (error) => {
           errorObject.error = ENUM_ERRORS.SocketError;
-          logger.error(`getProxyLocation connect error: ${error}`);
+          this.logger_.error(`getProxyLocation connect error: ${error}`);
           res.destroy();
         });
         
         res.on("close", () => {
           const endtime = new Date().getTime() - startTime;
-          logger.info(`getProxyLocation response time: ${endtime} ms`);
+          this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
           
           if (Object.keys(errorObject).length !== 0) resolve(errorObject);
           else resolve(proxyInfo);
@@ -322,7 +309,7 @@ export class PCheckerEssential extends PCheckerBase {
 
       return essentialInfo;
     } catch (error) {
-      logger.error(`checkProxyEssential error: ${error}`);
+      this.logger_.error(`checkProxyEssential error: ${error}`);
       return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
     }
   }

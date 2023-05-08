@@ -3,19 +3,7 @@
 import http from "http";
 import { ProxyOptions, ProxyError } from "./types.js";
 import { ENUM_ERRORS } from "./emuns.js";
-
-import { createLogger, transports, format, log } from "winston";
-
-const logger = createLogger({
-  transports: [new transports.Console()],
-  format: format.combine(
-    format.colorize(),
-    format.timestamp(),
-    format.printf(({ timestamp, level, message }) => {
-      return `[${timestamp}] ${level}: ${message}`;
-    })
-  ),
-});
+import { createLogger, transports, format, Logger } from "winston";
 
 export class PCheckerBase {
   protected host_: string;
@@ -27,6 +15,7 @@ export class PCheckerBase {
   protected password_: string;
   protected auth_: string;
   protected timeoutsArray_: Array<Promise<any>>;
+  protected logger_: Logger;
 
   protected static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
 
@@ -55,6 +44,7 @@ export class PCheckerBase {
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
     // when i implement sign up/login, this will be saved and run only once everyday for every user
+    // @todo: add error handling for this
     publicIPAddress !== undefined
       ? (this.publicIPAddress_ = publicIPAddress)
       : (this.publicIPAddress_ = this.getPublicIP());
@@ -80,6 +70,17 @@ export class PCheckerBase {
     if (this.auth_ !== undefined) {
       this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
     }
+
+    this.logger_ = createLogger({
+      transports: [new transports.Console()],
+      format: format.combine(
+        format.colorize(),
+        format.timestamp(),
+        format.printf(({ timestamp, level, message }) => {
+          return `[${timestamp}] ${level}: ${message}`;
+        })
+      ),
+    });
   }
 
   /**
@@ -102,7 +103,7 @@ export class PCheckerBase {
       http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
           errorObject.error = ENUM_ERRORS.StatusCodeError;
-          logger.error(`getPublicIP bad status code: ${res.statusCode}`);
+          this.logger_.error(`getPublicIP bad status code: ${res.statusCode}`);
           res.destroy();
         }
 
@@ -121,14 +122,14 @@ export class PCheckerBase {
             myPublicIP = responseData.toString();
           } else {
             errorObject.error = ENUM_ERRORS.JSONParseError;
-            logger.error(`getPublicIP Regex IP Parse Error`);
+            this.logger_.error(`getPublicIP Regex IP Parse Error`);
           }
           res.destroy();
         });
 
         res.on("error", (error) => {
           errorObject.error = ENUM_ERRORS.ConnectionError;
-          logger.error(`getPublicIP connect error: ${error}`);
+          this.logger_.error(`getPublicIP connect error: ${error}`);
           res.destroy();
         });
 
@@ -235,5 +236,9 @@ export class PCheckerBase {
   public setPassword(password: string): void {
     this.password_ = password;
     this.updateOptions();
+  }
+
+  public turnOffLogger(): void {
+    this.logger_.transports.forEach((t) => (t.silent = true));
   }
 }
