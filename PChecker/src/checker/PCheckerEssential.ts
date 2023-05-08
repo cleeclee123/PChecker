@@ -229,6 +229,7 @@ export class PCheckerEssential extends PCheckerBase {
     return new Promise<ProxyInfoEssential | ProxyError>((resolve) => {
       let proxyInfo = {} as ProxyInfoEssential;
       let errorObject = {} as ProxyError;
+      const startTime = new Date().getTime();
 
       const requestOptions = {
         host: this.host_,
@@ -278,8 +279,11 @@ export class PCheckerEssential extends PCheckerBase {
           logger.error(`getProxyLocation connect error: ${error}`);
           res.destroy();
         });
-
+        
         res.on("close", () => {
+          const endtime = new Date().getTime() - startTime;
+          logger.info(`getProxyLocation response time: ${endtime} ms`);
+          
           if (Object.keys(errorObject).length !== 0) resolve(errorObject);
           else resolve(proxyInfo);
         });
@@ -292,11 +296,8 @@ export class PCheckerEssential extends PCheckerBase {
    * @returns: Promise<Object | Error>
    * Check essential proxy info
    */
-  protected async checkProxyEssential(): Promise<
-    ProxyInfoEssential | ProxyError
-  > {
-    const timeoutPromise: Promise<ProxyInfoEssential> =
-      this.createTimeout("timedout");
+  protected async checkProxyEssential() /* : Promise<ProxyInfoEssential | ProxyError> */ {
+    const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
 
     // race between timeout and promises
     try {
@@ -305,19 +306,21 @@ export class PCheckerEssential extends PCheckerBase {
         this.checkProxyHTTPS(),
         this.getProxyLocation(),
       ];
+      let race = await Promise.race([timeoutPromise, Promise.all(promises)]);
+      if (race.hasOwnProperty("timeoutdata")) return race as ProxyError;
 
-      const results = await Promise.all(promises.map((p) => p.catch((e) => e)));
+      const results = race as ProxyInfoEssential[];
       const validResults = results.filter(
         (result) => !(result instanceof Error)
       );
-
       const essentialInfo: ProxyInfoEssential = Object.assign(
         {},
         validResults[0],
         validResults[1],
         validResults[2]
       );
-      return await Promise.race([timeoutPromise, essentialInfo]);
+
+      return essentialInfo;
     } catch (error) {
       logger.error(`checkProxyEssential error: ${error}`);
       return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;

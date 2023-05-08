@@ -26,7 +26,7 @@ export class PCheckerBase {
   protected username_: string;
   protected password_: string;
   protected auth_: string;
-  private timeoutsArray_: Array<Promise<any>>;
+  protected timeoutsArray_: Array<Promise<any>>;
 
   protected static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
 
@@ -217,8 +217,8 @@ export class PCheckerBase {
     this.updateOptions();
   }
 
-  public setTimeout(timeout: number): void {
-    this.timeout_ = timeout;
+  public setTimeout(timeout: string): void {
+    this.timeout_ = Number(timeout);
     this.updateOptions();
   }
 
