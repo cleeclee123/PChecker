@@ -28,13 +28,18 @@ export enum ENUM_ProxyAnonymity {
 }
 
 export enum ENUM_ERRORS {
-  StatusCodeError = "Status Code Error",
-  ConnectionError = "Connection Error",
-  JSONParseError = "JSON Parse Error",
-  PromiseRaceError = "PromiseRaceError",
-  SocketError = "SocketError",
-  EmptySocketResponse = "Empty Response",
-  GeoLocationError = "GeoLocationError",
+  STATUS_CODE_ERROR = "STATUS_CODE_ERROR",
+  CONNECTION_ERROR = "CONNECTION_ERROR",
+  JSON_PARSE_ERROR = "JSON_PARSE_ERROR",
+  PROMISE_RACE_ERROR = "PROMISE_RACE_ERROR",
+  SOCKET_ERROR = "SOCKET_ERROR",
+  EMPTY_SOCKET_RESPONSE = "EMPTY_RESPONSE",
+  GEO_LOCATION_ERROR = "GEO_LOCATION_ERROR",
+  PUBLIC_IP_ADDRESS_ERROR = "PUBLIC_IP_ADDRESS_ERROR"
+}
+
+export const customEnumError = (customMessage: string, error: ENUM_ERRORS) => {
+  return `${customMessage}_${error}`;
 }
 
 export enum ENUM_DNSLeakCheck {

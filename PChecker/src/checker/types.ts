@@ -98,9 +98,10 @@ export type DNSResponseServer = {
 };
 
 export type ProxyInfoEssential = {
-  responseTime?: number;
-  anonymity?: ENUM_ProxyAnonymity;
+  judgeServerRes?: number;
+  anonymity?: ENUM_ProxyAnonymity | "";
   https?: boolean;
-  connectResponseTime?: number;
+  httpConnectRes?: number;
   countryCode?: string;
+  errors?: string[];
 };
