@@ -43,16 +43,18 @@ export class PCheckerBase {
     this.optionspj_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
-    // when i implement sign up/login, this will be saved and run only once everyday for every user
-    // @todo: add error handling for this
-    publicIPAddress !== undefined
+    publicIPAddress !== undefined || publicIPAddress !== ""
       ? (this.publicIPAddress_ = publicIPAddress)
       : (this.publicIPAddress_ = this.getPublicIP());
 
-    username !== undefined && password !== undefined
+    (username !== undefined && password !== undefined) ||
+    (username !== "" && password !== "")
       ? (this.auth_ =
           "Basic " + Buffer.from(username + ":" + password).toString("base64"))
       : (this.auth_ = undefined);
+    if (this.auth_ !== undefined) {
+      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+    }
 
     this.optionspj_ = {
       host: this.host_,
@@ -66,10 +68,6 @@ export class PCheckerBase {
           ],
       },
     };
-
-    if (this.auth_ !== undefined) {
-      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
-    }
 
     this.logger_ = createLogger({
       transports: [new transports.Console()],
@@ -240,5 +238,14 @@ export class PCheckerBase {
 
   public turnOffLogger(): void {
     this.logger_.transports.forEach((t) => (t.silent = true));
+  }
+
+  protected nullChecks(): void {
+    if (this.host_ === undefined || this.host_ === "")
+      throw new Error("Host is Empty");
+    if (this.port_ === undefined || this.port_ === "")
+      throw new Error("Port is Empty");
+    if (this.timeout_ === undefined || Number.isNaN(this.timeout_))
+      throw new Error("Timeout is Empty");
   }
 }
