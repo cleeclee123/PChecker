@@ -19,6 +19,7 @@ import {
   ENUM_ProxyAnonymity,
   ENUM_ERRORS,
   ENUM_DNSLeakCheck,
+  customEnumError,
 } from "./emuns.js";
 import { PCheckerBase } from "./PCheckerBase.js";
 
@@ -30,6 +31,7 @@ export class PCheckerMethods extends PCheckerBase {
   private static readonly kTestDomain: string = `http://myproxyjudgeclee.software/index.html`;
 
   // injection testing
+  /** @todo: move to testing infra */
   // private static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
   // private static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
@@ -47,7 +49,7 @@ export class PCheckerMethods extends PCheckerBase {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerMethods.kTestDomain, 
+      path: PCheckerMethods.kTestDomain,
       headers: {
         "User-Agent":
           PCheckerMethods.kUserAgents[
@@ -63,29 +65,51 @@ export class PCheckerMethods extends PCheckerBase {
 
   /**
    * @method: checkProxyAnonymity(), private helper function
-   * @returns Promise<ProxyInfo | Error>
+   * @returns Promise<ProxyInfo | ProxyError>
    * connects to proxy judge through http proxy, strips and scans response headers, checks time to connect
    */
   protected async checkProxyAnonymity(): Promise<
     ProxyInfoFromHttp | ProxyError
   > {
-    const timeoutPromise: Promise<ProxyInfoFromHttp> =
-      this.createTimeout("timedout");
-    // kind slow, difference between response time of proxy connection and runtime is signficant if client ip address is not passed into constructor
-    let resolvedPIP = await this.publicIPAddress_;
+    const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
 
     const response: Promise<ProxyInfoFromHttp | ProxyError> = new Promise(
-      (resolve, reject) => {
-        let httpRequest = {} as ProxyInfoFromHttp;
-        let errorObject = {} as ProxyError;
-        let startTime = new Date().getTime();
+      async (resolve, reject) => {
+        if (
+          this.publicIPAddress_ === undefined ||
+          this.publicIPAddress_ === ""
+        ) {
+          const tempPublicIP = await this.getPublicIP();
+          if (
+            tempPublicIP.hasOwnProperty("error") ||
+            tempPublicIP.hasOwnProperty("timedout")
+          ) {
+            this.logger_.error(
+              `checkProxyAnonymityEssential getPublicIP error`
+            );
+            resolve({
+              error: customEnumError(
+                "ANONYMITY_CHECK",
+                ENUM_ERRORS.PUBLIC_IP_ADDRESS_ERROR
+              ),
+            } as ProxyError);
+          } else {
+            this.publicIPAddress_ = String(tempPublicIP);
+          }
+        }
+        this.logger_.info(`public ip address: ${this.publicIPAddress_}`);
+
+        const httpRequest = {} as ProxyInfoFromHttp;
+        const errorObject = {} as ProxyError;
+        const startTime = new Date().getTime();
 
         http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
-            // console.log(`httpRequest Bad Status Code`);
+            this.logger_.error(
+              `checkProxyAnonymity status code: ${res.statusCode}`
+            );
             errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-
-            resolve(errorObject);
+            res.destroy();
           }
 
           let body = [] as any[];
@@ -93,61 +117,77 @@ export class PCheckerMethods extends PCheckerBase {
             body.push(chunk);
           });
 
-          res.on("close", () => {
-            httpRequest.responseTime = new Date().getTime() - startTime;
-          });
-
           res.on("end", () => {
             try {
               httpRequest.header = JSON.parse(Buffer.concat(body).toString());
 
+              // count time that public ip address appers in header
               let pipCount = 0;
-              let toFlag: any[] = [];
-              Object.keys(httpRequest.header).forEach(async (key) => {
-                if (key in ENUM_FlaggedHeaderValues) {
-                  if (
-                    resolvedPIP !== undefined ||
-                    resolvedPIP !== ({} as any)
-                  ) {
+              const toFlag: any[] = [];
+              let proxyInfoAnonymity;
+
+              if (
+                this.publicIPAddress_ !== undefined &&
+                this.publicIPAddress_ !== ({} as any)
+              ) {
+                for (const key of Object.keys(httpRequest.header)) {
+                  if (key in ENUM_FlaggedHeaderValues) {
                     if (
                       String(httpRequest.header[key as keyof JSON]) ===
-                      String(resolvedPIP)
+                      this.publicIPAddress_
                     ) {
                       pipCount++;
                     }
-                  } else if (
-                    Object.keys(resolvedPIP).length === 0 &&
-                    resolvedPIP.constructor === Object
-                  ) {
-                    httpRequest.anonymity = undefined;
+                    toFlag.push(key);
                   }
+                }
+
+                proxyInfoAnonymity =
                   pipCount === 0
-                    ? (httpRequest.anonymity = ENUM_ProxyAnonymity.Anonymous)
-                    : (httpRequest.anonymity = ENUM_ProxyAnonymity.Transparent);
-                  toFlag.push(key);
-                }
+                    ? ENUM_ProxyAnonymity.Anonymous
+                    : ENUM_ProxyAnonymity.Transparent;
+              } else if (
+                Object.keys(this.publicIPAddress_).length === 0 &&
+                this.publicIPAddress_.constructor === Object
+              ) {
+                proxyInfoAnonymity = undefined;
+              } else {
+                proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
+              }
 
-                httpRequest.cause = toFlag;
-                if (httpRequest.cause.length === 0) {
-                  httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
-                }
-              });
+              httpRequest.anonymity =
+                toFlag.length === 0
+                  ? ENUM_ProxyAnonymity.Elite
+                  : proxyInfoAnonymity;
+
+              httpRequest.cause = toFlag;
+              if (httpRequest.cause.length === 0) {
+                httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
+              }
             } catch (error) {
-              res.destroy();
-              // console.log(`httpRequest JSON Parse Error: ${error}`);
               errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
-
-              resolve(errorObject);
+              this.logger_.error(
+                `checkProxyAnonymity JSON parse error: ${error}`
+              );
             }
 
-            resolve(httpRequest);
+            res.destroy();
           });
 
           res.on("error", (error) => {
-            // console.log(`httpRequest ON-Error: ${error}`);
             errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+            this.logger_.error(
+              `checkProxyAnonymity connection error: ${error}`
+            );
+            res.destroy();
+          });
 
-            resolve(errorObject);
+          res.on("close", () => {
+            httpRequest.responseTime = new Date().getTime() - startTime;
+
+            // sending res.destroy signal if error happens
+            if (errorObject.hasOwnProperty("error")) resolve(errorObject);
+            else resolve(httpRequest);
           });
         });
       }
@@ -155,9 +195,9 @@ export class PCheckerMethods extends PCheckerBase {
 
     // race between timeout and httpsCheck
     try {
-      return await Promise.race([timeoutPromise, response]);
+      return Promise.race([timeoutPromise, response]);
     } catch (error) {
-      // console.log(`httpRequest PromiseRace Error: ${error}`);
+      this.logger_.error(`checkProxyAnonymity PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
@@ -175,10 +215,14 @@ export class PCheckerMethods extends PCheckerBase {
 
     const bufferPromise: Promise<ProxyInfoFromHttps | ProxyError> = new Promise(
       (resolve, reject) => {
-        let httpsRequest = {} as ProxyInfoFromHttps;
-        let startTime = new Date().getTime();
-        let buffersLength: number = 0;
+        const proxyInfo = {} as ProxyInfoFromHttps;
+        proxyInfo.responseTime = -1;
+        proxyInfo.response = "";
+
+        const proxyError = {} as ProxyError;
+        const startTime = new Date().getTime();
         const buffers = [] as Buffer[];
+        let buffersLength: number = 0;
 
         const socketConnect = () => {
           this.socket_ = net.connect({
@@ -187,13 +231,12 @@ export class PCheckerMethods extends PCheckerBase {
           });
 
           // requests a http tunnel to be open https://en.wikipedia.org/wiki/HTTP_tunnel
-          let payload = `CONNECT ${this.host_}:${Number(
+          const payload = `CONNECT ${this.host_}:${Number(
             this.port_
           )} HTTP/1.1\r\n`;
 
           this.socket_.on("connect", () => {
             this.socket_.write(`${payload}\r\n`);
-            // console.log("socket connected");
           });
 
           // dont need to buffer any traffic before proxy connect
@@ -201,31 +244,39 @@ export class PCheckerMethods extends PCheckerBase {
           // meaning/confirming server has no https support
           onData();
 
-          // handle everything else below:
           // check response at socket end
-          this.socket_.on("end", () => {});
+          this.socket_.on("end", () => {
+            // handle empty response here
+            this.logger_.info(
+              `checkProxyHTTPS empty response: https not supported`
+            );
+            if (
+              proxyInfo.response === undefined ||
+              !proxyInfo.response ||
+              proxyInfo.response === "" ||
+              proxyInfo.statusCode === undefined ||
+              !proxyInfo.statusCode ||
+              proxyInfo.statusCode === 0
+            ) {
+              proxyInfo.response = "";
+              proxyInfo.statusCode = 500;
+              this.socket_.destroy;
+            }
+          });
 
           // resolve when socket is close, we destory after seeing sucessful status code
           this.socket_.on("close", () => {
-            httpsRequest.responseTime = new Date().getTime() - startTime;
-
-            // handle empty response here
-            if (
-              !httpsRequest.statusCode ||
-              !httpsRequest.responseTime ||
-              !httpsRequest.response
-            ) {
-              resolve({ error: ENUM_ERRORS.EMPTY_SOCKET_RESPONSE } as ProxyError);
-            }
-
-            //this.socket_.destroy();
-            resolve(httpsRequest);
+            proxyInfo.responseTime = new Date().getTime() - startTime;
+            if (proxyError.hasOwnProperty("error")) resolve(proxyError);
+            resolve(proxyInfo);
           });
 
           // todo: better/more specifc error handling
           this.socket_.on("error", (error) => {
+            proxyError.error = ENUM_ERRORS.SOCKET_ERROR;
+            this.logger_.error(`getProxyLocation connect error: ${error}`);
+
             this.socket_.destroy();
-            resolve({ error: ENUM_ERRORS.SOCKET_ERROR } as ProxyError);
           });
         };
 
@@ -245,28 +296,32 @@ export class PCheckerMethods extends PCheckerBase {
             }
 
             // parse actual response, usually something like: "HTTP/1.1 200 Connection established"
-            httpsRequest.response = buffered.toString(
+            const response = buffered.toString(
               "ascii",
               0,
               buffered.indexOf("\r\n")
             );
 
             // parse status code from response
-            httpsRequest.statusCode = Number(
-              +httpsRequest.response.split(" ")[1]
-            );
+            const statusCode = String(+response.split(" ")[1]);
 
-            // console.log("socket status code ", httpsRequest.statusCode);
+            // assign everything to proxyInfo
+            proxyInfo.response = response;
+            proxyInfo.statusCode = Number(statusCode);
 
-            // resolve right away if status code is not 200
             // 403 status code may hint at https support with auth
             // 500 status code may hint at https support
-            if (httpsRequest.statusCode !== 200) {
-              resolve({ error: ENUM_ERRORS.STATUS_CODE_ERROR } as ProxyError);
-            } else {
-              // handle 200 res on close
-              this.socket_.destroy();
-            }
+            this.logger_.info(`checkProxyHTTPS statusCode: ${statusCode}`);
+            if (statusCode === "403" || statusCode === "401")
+              this.logger_.warn(`auth may be required`);
+            else if (statusCode[0] === "4")
+              this.logger_.warn(`not support generally`);
+            else if (statusCode[0] === "5")
+              this.logger_.warn(
+                `proxy server error, probably no https support`
+              );
+
+            this.socket_.destroy();
           });
         };
 
@@ -275,9 +330,9 @@ export class PCheckerMethods extends PCheckerBase {
     );
 
     try {
-      return await Promise.race([bufferPromise, timeoutPromise]);
+      return Promise.race([bufferPromise, timeoutPromise]);
     } catch (error) {
-      // console.log(`httpsCheck PromiseRace Error: ${error}`);
+      this.logger_.error(`checkProxyHTTPS PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
@@ -306,41 +361,50 @@ export class PCheckerMethods extends PCheckerBase {
 
         http.get(this.optionsTestDomain_, (res) => {
           if (res.statusCode !== 200) {
-            // console.log(`httpRequest Bad Status Code ${res.statusCode}`);
+            this.logger_.error(
+              `checkProxyContent status code: ${res.statusCode}`
+            );
             errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-
-            resolve(errorObject);
+            res.destroy();
           }
 
           res.setEncoding("utf8");
-          let response: string[] = [];
-          let body = [] as string[];
+          const body = [] as string[];
           res.on("data", (chunk: string) => {
             body.push(chunk);
+          });
 
-            let split = body[0].split("\n");
-            split.forEach((line: string) => response.push(line.trim()));
+          let response: string[] = [];
+          res.on("end", () => {
+            body[0]
+              .split("\n")
+              .forEach((line: string) => response.push(line.trim()));
             response = response.filter((v) => v.length !== 0);
           });
 
-          res.on("close", () => {
-            resolve(response);
+          res.on("error", (error) => {
+            this.logger_.error(`httpResponse ON-Error: ${error}`);
+            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+            res.destroy();
           });
 
-          res.on("end", () => {});
-
-          res.on("error", (error) => {
-            // console.log(`httpResponse ON-Error: ${error}`);
-            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
-
-            resolve(errorObject);
+          res.on("close", () => {
+            if (errorObject.hasOwnProperty("error")) {
+              // the proxy judge is expected to work
+              if (errorObject.error === ENUM_ERRORS.STATUS_CODE_ERROR) {
+                this.logger_.error("the proxy judge is failing"); // maybe because its written in php
+                reject(errorObject);
+              }
+              resolve(errorObject);
+            }
+            resolve(response);
           });
         });
       }
     );
 
     const contentCheck: Promise<ProxyContentCheck | ProxyError> = new Promise(
-      (resolve, reject) => {
+      (resolve) => {
         let content = {} as ProxyContentCheck;
         let response: string[] = [];
 
@@ -354,8 +418,6 @@ export class PCheckerMethods extends PCheckerBase {
 
           // check if data/html has been alter after connecting with proxy server
           const hasChanged = (): boolean => {
-            // console.log(response);
-            // console.log(expectedResponse);
             let i = expectedResponse.length;
             while (i--) {
               if (expectedResponse[i] !== response[i]) {
@@ -400,9 +462,9 @@ export class PCheckerMethods extends PCheckerBase {
     );
 
     try {
-      return await Promise.race([contentCheck, timeoutPromise]);
+      return Promise.race([contentCheck, timeoutPromise]);
     } catch (error) {
-      // console.log(`content check PromiseRace Error: ${error}`);
+      this.logger_.error(`checkProxyContent PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
@@ -428,22 +490,30 @@ export class PCheckerMethods extends PCheckerBase {
     };
 
     const googlePromise: Promise<boolean | ProxyError> = new Promise(
-      (resolve, reject) => {
+      (resolve) => {
+        const googleCheckError = {} as ProxyError;
         http.get(googleOptions, (res) => {
-          // console.log(res.statusCode);
           if (res.statusCode !== 200) {
-            resolve(false);
-          } else {
-            resolve(true);
+            googleCheckError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+            this.logger_.error(`google check status code: ${res.statusCode}`);
           }
+          res.destroy();
+
+          res.on("close", () => {
+            if (googleCheckError.hasOwnProperty("error")) {
+              resolve(false);
+            } else {
+              resolve(true);
+            }
+          });
         });
       }
     );
 
     try {
-      return await Promise.race([googlePromise, timeoutPromise]);
+      return Promise.race([googlePromise, timeoutPromise]);
     } catch (error) {
-      // console.log(`google check PromiseRace Error: ${error}`);
+      this.logger_.error(`google check PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
@@ -471,35 +541,68 @@ export class PCheckerMethods extends PCheckerBase {
 
     const geolocationPromise: Promise<ProxyLocation | ProxyError> = new Promise(
       (resolve, reject) => {
-        const geolocation = {} as ProxyLocation;
+        const proxyInfo = {} as ProxyLocation;
+        const proxyError = {} as ProxyError;
+
+        const startTime = new Date().getTime();
+
+        const requestOptions = {
+          host: this.host_,
+          port: Number(this.port_),
+          path: `http://ip-api.com/json/${this.host_}`,
+          headers: {
+            "User-Agent":
+              PCheckerMethods.kUserAgents[
+                Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
+              ],
+          },
+        };
 
         http.get(requestOptions, (res) => {
-          // console.log(res.statusCode);
           if (res.statusCode !== 200) {
-            resolve({ error: ENUM_ERRORS.STATUS_CODE_ERROR } as ProxyError);
+            proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+            this.logger_.error(
+              `getProxyLocation bad status code: ${res.statusCode}`
+            );
+            res.destroy();
           }
-          console.log(res.headers);
 
           res.setEncoding("utf8");
-          let responseData = [] as any;
+          let responseData = [] as string[];
           res.on("data", (data) => {
             responseData.push(data);
           });
 
           res.on("end", () => {
             try {
-              geolocation.data = JSON.parse(responseData.join(""));
-              resolve(geolocation);
+              const json: any = JSON.parse(responseData.join(""));
+              proxyInfo.data = json;
             } catch (error) {
-              resolve({ error: ENUM_ERRORS.JSON_PARSE_ERROR } as ProxyError);
+              proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+              this.logger_.error(`getProxyLocation JSON Parse Error`);
             }
+            res.destroy();
+          });
+
+          res.on("error", (error) => {
+            proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            this.logger_.error(`getProxyLocation connect error: ${error}`);
+            res.destroy();
+          });
+
+          res.on("close", () => {
+            const endtime = new Date().getTime() - startTime;
+            this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
+
+            if (proxyError.hasOwnProperty("error")) resolve(proxyError);
+            resolve(proxyInfo);
           });
         });
       }
     );
 
     try {
-      return await Promise.race([geolocationPromise, timeoutPromise]);
+      return Promise.race([geolocationPromise, timeoutPromise]);
     } catch (error) {
       // console.log(`google check PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
@@ -532,6 +635,8 @@ export class PCheckerMethods extends PCheckerBase {
     const dnsLeakPromise: Promise<ProxyDNSCheck | ProxyError> = new Promise(
       async (resolve, reject) => {
         const dnsLeakCheck = {} as ProxyDNSCheck;
+        const proxyError = {} as ProxyError;
+        const startTime = new Date().getTime();
 
         const leakId = generateRandomNumber(1000000, 9999999);
         let domains: string[] = [];
@@ -547,13 +652,20 @@ export class PCheckerMethods extends PCheckerBase {
           path: `https://bash.ws/dnsleak/test/${leakId}?json`,
         };
 
-        http.get(options, (response) => {
-          let data = "";
-          response.on("data", (chunk) => {
+        http.get(options, (res) => {
+          if (res.statusCode !== 200) {
+            proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+            this.logger_.error(`dnsLeak bad status code: ${res.statusCode}`);
+            res.destroy();
+          }
+
+          res.setEncoding("utf8");
+          let data: string = "";
+          res.on("data", (chunk) => {
             data += chunk;
           });
 
-          response.on("end", () => {
+          res.on("end", () => {
             try {
               const parsedData = JSON.parse(data);
 
@@ -571,8 +683,9 @@ export class PCheckerMethods extends PCheckerBase {
               dnsLeakCheck.dnsServerCount = dnsServersCount;
 
               if (dnsServersCount === 0) {
-                // console.log("No DNS servers found");
-                resolve({} as ProxyDNSCheck);
+                proxyError.error = ENUM_ERRORS.NO_DNS_SERVERS;
+                this.logger_.error(`no dns servers found`);
+                res.destroy();
               }
 
               parsedData
@@ -589,22 +702,38 @@ export class PCheckerMethods extends PCheckerBase {
 
               resolve(dnsLeakCheck);
             } catch (error) {
-              // console.log(`DNS Leak Check Error: ${error}`);
-              resolve({} as ProxyDNSCheck);
+              proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+              this.logger_.error(`dnsLeak JSON Parse Error`);
+              res.destroy();
             }
+          });
+
+          res.on("error", (error) => {
+            proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            this.logger_.error(`dnsLeak connect error: ${error}`);
+            res.destroy();
+          });
+
+          res.on("close", () => {
+            const endtime = new Date().getTime() - startTime;
+            this.logger_.info(`dnsLeakCheck run time: ${endtime} ms`);
+
+            if (proxyError.hasOwnProperty("error")) resolve(proxyError);
+            resolve(dnsLeakCheck);
           });
         });
       }
     );
 
     try {
-      return await Promise.race([dnsLeakPromise, timeoutPromise]);
+      return Promise.race([dnsLeakPromise, timeoutPromise]);
     } catch (error) {
-      // console.log(`dns leak check PromiseRace Error: ${error}`);
+      this.logger_.error(`dns leak check PromiseRace Error: ${error}`);
       return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
+  // find a way to make this actually work
   // /**
   //  * @method: checkProxyWebRTCLeak, private helper function
   //  * @returns: Promise<bool | Error>
