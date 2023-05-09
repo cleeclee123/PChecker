@@ -28,7 +28,7 @@ class PCheckerMixin extends PCheckerBase {
     host?: string,
     port?: string,
     timeout?: string,
-    publicIPAddress?: string | Promise<string | ProxyError>,
+    publicIPAddress?: string,
     username?: string,
     password?: string
   ) {
@@ -43,7 +43,7 @@ export class PChecker extends PCheckerMixin {
     host?: string,
     port?: string,
     timeout?: string,
-    publicIPAddress?: string | Promise<string | ProxyError>,
+    publicIPAddress?: string,
     username?: string,
     password?: string
   ) {
@@ -56,6 +56,7 @@ export class PChecker extends PCheckerMixin {
    * runs anomnity check
    */
   public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
+    this.nullChecks();
     const anomnityStatus = await this.checkProxyAnonymity();
     this.clearTimeouts();
 
@@ -68,6 +69,7 @@ export class PChecker extends PCheckerMixin {
    * runs https support check
    */
   public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
+    this.nullChecks();
     const httpsStatus = await this.checkProxyHTTPSSupport();
     this.clearTimeouts();
 
@@ -80,6 +82,7 @@ export class PChecker extends PCheckerMixin {
    * runs content check
    */
   public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
+    this.nullChecks();
     const contentCheck = await this.checkProxyContent();
     this.clearTimeouts();
 
@@ -92,6 +95,7 @@ export class PChecker extends PCheckerMixin {
    * runs google support check
    */
   public async checkGoogle(): Promise<boolean | ProxyError> {
+    this.nullChecks();
     const contentCheck = await this.checkProxyGoogleSupport();
     this.clearTimeouts();
 
@@ -104,6 +108,7 @@ export class PChecker extends PCheckerMixin {
    * runs dns leak check
    */
   public async checkDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
+    this.nullChecks();
     const dnsLeakCheck = await this.checkProxyDNSLeak();
     this.clearTimeouts();
 
@@ -116,6 +121,7 @@ export class PChecker extends PCheckerMixin {
    * fetch proxy location from ip-api.com
    */
   public async checkLocation(): Promise<ProxyLocation | ProxyError> {
+    this.nullChecks();
     const geolocation = await this.checkProxyLocation();
     this.clearTimeouts();
 
@@ -128,6 +134,7 @@ export class PChecker extends PCheckerMixin {
    * returns only essential info
    */
   public async checkEssential(): Promise<ProxyInfoEssential | ProxyError> {
+    this.nullChecks();
     const essential = await this.checkProxyEssential();
     this.clearTimeouts();
 

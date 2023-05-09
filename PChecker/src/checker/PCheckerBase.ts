@@ -10,7 +10,7 @@ export class PCheckerBase {
   protected port_: string;
   protected timeout_: number;
   protected optionspj_: ProxyOptions;
-  protected publicIPAddress_: string | Promise<string | ProxyError>;
+  protected publicIPAddress_: string;
   protected username_: string;
   protected password_: string;
   protected auth_: string;
@@ -31,21 +31,18 @@ export class PCheckerBase {
     host?: string,
     port?: string,
     timeout?: string,
-    publicIPAddress?: string | Promise<string | ProxyError>,
+    publicIPAddress?: string,
     username?: string,
     password?: string
   ) {
     this.host_ = host;
     this.port_ = port;
     this.timeout_ = Number(timeout);
+    this.publicIPAddress_ = publicIPAddress;
     this.username_ = username;
     this.password_ = password;
     this.optionspj_ = {} as ProxyOptions;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
-
-    publicIPAddress !== undefined || publicIPAddress !== ""
-      ? (this.publicIPAddress_ = publicIPAddress)
-      : (this.publicIPAddress_ = this.getPublicIP());
 
     (username !== undefined && password !== undefined) ||
     (username !== "" && password !== "")
@@ -90,7 +87,9 @@ export class PCheckerBase {
     const timeoutPromise: Promise<string> = this.createTimeout("timedout");
 
     const responsePromise = new Promise<string | ProxyError>((resolve) => {
+      const startTime = new Date().getTime();
       const errorObject = {} as ProxyError;
+
       let myPublicIP: string = "";
       const requestOptions = {
         host: "api.ipify.org",
@@ -100,7 +99,7 @@ export class PCheckerBase {
 
       http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
-          errorObject.error = ENUM_ERRORS.StatusCodeError;
+          errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
           this.logger_.error(`getPublicIP bad status code: ${res.statusCode}`);
           res.destroy();
         }
@@ -119,19 +118,22 @@ export class PCheckerBase {
           ) {
             myPublicIP = responseData.toString();
           } else {
-            errorObject.error = ENUM_ERRORS.JSONParseError;
+            errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
             this.logger_.error(`getPublicIP Regex IP Parse Error`);
           }
           res.destroy();
         });
 
         res.on("error", (error) => {
-          errorObject.error = ENUM_ERRORS.ConnectionError;
+          errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
           this.logger_.error(`getPublicIP connect error: ${error}`);
           res.destroy();
         });
 
         res.on("close", () => {
+          const endTime = new Date().getTime() - startTime;
+          this.logger_.info(`getPublicIPAddress response time: ${endTime} ms`);
+
           if (Object.keys(errorObject).length !== 0) resolve(errorObject);
           else resolve(myPublicIP);
         });
@@ -143,8 +145,8 @@ export class PCheckerBase {
     try {
       return Promise.race([responsePromise, timeoutPromise]);
     } catch (error) {
-      this.publicIPAddress_ = new Promise((resolve) => {
-        resolve({ error: ENUM_ERRORS.PromiseRaceError } as ProxyError);
+      return new Promise((resolve) => {
+        resolve({ error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError);
       });
     }
   }
