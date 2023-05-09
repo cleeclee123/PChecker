@@ -37,7 +37,7 @@ export class PCheckerMethods extends PCheckerBase {
     host?: string,
     port?: string,
     timeout?: string,
-    publicIPAddress?: string | Promise<string | ProxyError>,
+    publicIPAddress?: string,
     username?: string,
     password?: string
   ) {
@@ -83,7 +83,7 @@ export class PCheckerMethods extends PCheckerBase {
         http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
             // console.log(`httpRequest Bad Status Code`);
-            errorObject.error = ENUM_ERRORS.StatusCodeError;
+            errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
 
             resolve(errorObject);
           }
@@ -135,7 +135,7 @@ export class PCheckerMethods extends PCheckerBase {
             } catch (error) {
               res.destroy();
               // console.log(`httpRequest JSON Parse Error: ${error}`);
-              errorObject.error = ENUM_ERRORS.JSONParseError;
+              errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
 
               resolve(errorObject);
             }
@@ -145,7 +145,7 @@ export class PCheckerMethods extends PCheckerBase {
 
           res.on("error", (error) => {
             // console.log(`httpRequest ON-Error: ${error}`);
-            errorObject.error = ENUM_ERRORS.ConnectionError;
+            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
 
             resolve(errorObject);
           });
@@ -158,7 +158,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([timeoutPromise, response]);
     } catch (error) {
       // console.log(`httpRequest PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -215,7 +215,7 @@ export class PCheckerMethods extends PCheckerBase {
               !httpsRequest.responseTime ||
               !httpsRequest.response
             ) {
-              resolve({ error: ENUM_ERRORS.EmptySocketResponse } as ProxyError);
+              resolve({ error: ENUM_ERRORS.EMPTY_SOCKET_RESPONSE } as ProxyError);
             }
 
             //this.socket_.destroy();
@@ -225,7 +225,7 @@ export class PCheckerMethods extends PCheckerBase {
           // todo: better/more specifc error handling
           this.socket_.on("error", (error) => {
             this.socket_.destroy();
-            resolve({ error: ENUM_ERRORS.SocketError } as ProxyError);
+            resolve({ error: ENUM_ERRORS.SOCKET_ERROR } as ProxyError);
           });
         };
 
@@ -262,7 +262,7 @@ export class PCheckerMethods extends PCheckerBase {
             // 403 status code may hint at https support with auth
             // 500 status code may hint at https support
             if (httpsRequest.statusCode !== 200) {
-              resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
+              resolve({ error: ENUM_ERRORS.STATUS_CODE_ERROR } as ProxyError);
             } else {
               // handle 200 res on close
               this.socket_.destroy();
@@ -278,7 +278,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([bufferPromise, timeoutPromise]);
     } catch (error) {
       // console.log(`httpsCheck PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -307,7 +307,7 @@ export class PCheckerMethods extends PCheckerBase {
         http.get(this.optionsTestDomain_, (res) => {
           if (res.statusCode !== 200) {
             // console.log(`httpRequest Bad Status Code ${res.statusCode}`);
-            errorObject.error = ENUM_ERRORS.StatusCodeError;
+            errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
 
             resolve(errorObject);
           }
@@ -331,7 +331,7 @@ export class PCheckerMethods extends PCheckerBase {
 
           res.on("error", (error) => {
             // console.log(`httpResponse ON-Error: ${error}`);
-            errorObject.error = ENUM_ERRORS.ConnectionError;
+            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
 
             resolve(errorObject);
           });
@@ -403,7 +403,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([contentCheck, timeoutPromise]);
     } catch (error) {
       // console.log(`content check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -444,7 +444,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([googlePromise, timeoutPromise]);
     } catch (error) {
       // console.log(`google check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -476,7 +476,7 @@ export class PCheckerMethods extends PCheckerBase {
         http.get(requestOptions, (res) => {
           // console.log(res.statusCode);
           if (res.statusCode !== 200) {
-            resolve({ error: ENUM_ERRORS.StatusCodeError } as ProxyError);
+            resolve({ error: ENUM_ERRORS.STATUS_CODE_ERROR } as ProxyError);
           }
           console.log(res.headers);
 
@@ -491,7 +491,7 @@ export class PCheckerMethods extends PCheckerBase {
               geolocation.data = JSON.parse(responseData.join(""));
               resolve(geolocation);
             } catch (error) {
-              resolve({ error: ENUM_ERRORS.JSONParseError } as ProxyError);
+              resolve({ error: ENUM_ERRORS.JSON_PARSE_ERROR } as ProxyError);
             }
           });
         });
@@ -502,7 +502,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([geolocationPromise, timeoutPromise]);
     } catch (error) {
       // console.log(`google check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -601,7 +601,7 @@ export class PCheckerMethods extends PCheckerBase {
       return await Promise.race([dnsLeakPromise, timeoutPromise]);
     } catch (error) {
       // console.log(`dns leak check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
