@@ -3,40 +3,67 @@
 import http from "http";
 import net from "net";
 import { PCheckerBase } from "./PCheckerBase.js";
-import { ProxyError, ProxyInfoEssential } from "./types.js";
+import { ProxyInfoEssential, ProxyError } from "./types.js";
 import {
   ENUM_FlaggedHeaderValues,
   ENUM_ProxyAnonymity,
   ENUM_ERRORS,
+  customEnumError,
 } from "./emuns.js";
 
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
+  private hasErrors_: boolean;
 
   constructor(
     host?: string,
     port?: string,
     timeout?: string,
-    publicIPAddress?: string | Promise<string | ProxyError>,
+    publicIPAddress?: string,
     username?: string,
     password?: string
   ) {
     super(host, port, timeout, publicIPAddress, username, password);
+    this.hasErrors_ = false;
   }
 
-  private async checkProxyAnonymityEssential(): Promise<
-    ProxyInfoEssential | ProxyError
-  > {
-    return new Promise<ProxyInfoEssential | ProxyError>((resolve) => {
+  private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
+    return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
-      let errorObject = {} as ProxyError;
-      let startTime = new Date().getTime();
+      proxyInfo.anonymity = "";
+
+      const anonymityErrors: string[] = [];
+      const startTime = new Date().getTime();
+
+      if (this.publicIPAddress_ === undefined || this.publicIPAddress_ === "") {
+        const tempPublicIP = await this.getPublicIP();
+        if (
+          tempPublicIP.hasOwnProperty("error") ||
+          tempPublicIP.hasOwnProperty("timedout")
+        ) {
+          this.logger_.error(`checkProxyAnonymityEssential getPublicIP error`);
+          resolve({
+            errors: [
+              customEnumError(
+                "ANONYMITY_CHECK",
+                ENUM_ERRORS.PUBLIC_IP_ADDRESS_ERROR
+              ),
+            ],
+          } as ProxyInfoEssential);
+        } else {
+          this.publicIPAddress_ = String(tempPublicIP);
+        }
+      }
+      // this.logger_.info(`public ip address: ${this.publicIPAddress_}`);
 
       http.get(this.optionspj_, (res) => {
         if (res.statusCode !== 200) {
-          errorObject.error = ENUM_ERRORS.StatusCodeError;
-          this.logger_.error(`checkProxyAnonymity status code: ${res.statusCode}`);
-
+          anonymityErrors.push(
+            customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.STATUS_CODE_ERROR)
+          );
+          this.logger_.error(
+            `checkProxyAnonymity status code: ${res.statusCode}`
+          );
           res.destroy();
         }
 
@@ -50,6 +77,7 @@ export class PCheckerEssential extends PCheckerBase {
         res.on("end", () => {
           try {
             const headers = JSON.parse(Buffer.concat(body).toString());
+            // this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
 
             // count time that public ip address appers in header
             let pipCount = 0;
@@ -63,8 +91,7 @@ export class PCheckerEssential extends PCheckerBase {
               for (const key of Object.keys(headers)) {
                 if (key in ENUM_FlaggedHeaderValues) {
                   if (
-                    String(headers[key as keyof JSON]) ===
-                    String(this.publicIPAddress_)
+                    String(headers[key as keyof JSON]) === this.publicIPAddress_
                   ) {
                     pipCount++;
                   }
@@ -90,36 +117,56 @@ export class PCheckerEssential extends PCheckerBase {
                 ? ENUM_ProxyAnonymity.Elite
                 : proxyInfoAnonymity;
           } catch (error) {
-            errorObject.error = ENUM_ERRORS.JSONParseError;
-            this.logger_.error(`checkProxyAnonymity JSON parse error: ${error}`);
+            anonymityErrors.push(
+              customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.JSON_PARSE_ERROR)
+            );
+            this.logger_.error(
+              `checkProxyAnonymity JSON parse error: ${error}`
+            );
           }
-
           res.destroy();
         });
 
         res.on("error", (error) => {
-          errorObject.error = ENUM_ERRORS.SocketError;
+          anonymityErrors.push(
+            customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_ERROR)
+          );
           this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
-
           res.destroy();
         });
 
         res.on("close", () => {
-          proxyInfo.responseTime = new Date().getTime() - startTime;
-          if (Object.keys(errorObject).length !== 0) resolve(errorObject);
-          else resolve(proxyInfo);
+          proxyInfo.judgeServerRes = new Date().getTime() - startTime;
+          if (anonymityErrors.length !== 0) {
+            this.hasErrors_ = true;
+            proxyInfo.errors = anonymityErrors;
+          }
+
+          // the proxy judge is expected to work
+          if (
+            anonymityErrors.indexOf(
+              `ANONYMITY_CHECK_${ENUM_ERRORS.STATUS_CODE_ERROR}`
+            ) !== -1
+          ) {
+            reject({} as ProxyInfoEssential);
+          } else {
+            resolve(proxyInfo);
+          }
         });
       });
     });
   }
 
-  private async checkProxyHTTPS(): Promise<ProxyInfoEssential | ProxyError> {
-    return new Promise<ProxyInfoEssential | ProxyError>((resolve) => {
-      let proxyInfo = {} as ProxyInfoEssential;
-      let errorObject = {} as ProxyError;
-      let startTime = new Date().getTime();
-      let buffersLength: number = 0;
+  private async checkProxyHTTPS(): Promise<ProxyInfoEssential> {
+    return new Promise<ProxyInfoEssential>((resolve) => {
+      const proxyInfo = {} as ProxyInfoEssential;
+      proxyInfo.httpConnectRes = -1;
+      proxyInfo.https = false;
+
+      const httpsErrors: string[] = [];
+      const startTime = new Date().getTime();
       const buffers = [] as Buffer[];
+      let buffersLength: number = 0;
 
       const socketConnect = () => {
         this.socketEssential_ = net.connect({
@@ -144,7 +191,9 @@ export class PCheckerEssential extends PCheckerBase {
         // check response at socket end
         this.socketEssential_.on("end", () => {
           // handle empty response here
-          this.logger_.info(`checkProxyHTTPS empty response: https not supported`);
+          this.logger_.info(
+            `checkProxyHTTPS empty response: https not supported`
+          );
           if (proxyInfo.https === undefined || !proxyInfo.https) {
             proxyInfo.https = false;
           }
@@ -152,14 +201,18 @@ export class PCheckerEssential extends PCheckerBase {
 
         // resolve when socket is close, we destory after seeing sucessful status code
         this.socketEssential_.on("close", () => {
-          proxyInfo.connectResponseTime = new Date().getTime() - startTime;
-          if (Object.keys(errorObject).length !== 0) resolve(errorObject);
-          else resolve(proxyInfo);
+          proxyInfo.httpConnectRes = new Date().getTime() - startTime;
+          if (httpsErrors.length !== 0) {
+            this.hasErrors_ = true;
+            proxyInfo.errors = httpsErrors;
+          }
+
+          resolve(proxyInfo);
         });
 
         // todo: better/more specifc error handling
         this.socketEssential_.on("error", (error) => {
-          errorObject.error = ENUM_ERRORS.SocketError;
+          httpsErrors.push(ENUM_ERRORS.SOCKET_ERROR);
           this.logger_.error(`getProxyLocation connect error: ${error}`);
 
           this.socketEssential_.destroy();
@@ -196,7 +249,8 @@ export class PCheckerEssential extends PCheckerBase {
           this.logger_.info(`checkProxyHTTPS statusCode: ${statusCode}`);
           if (statusCode === "403" || statusCode === "401")
             this.logger_.warn(`auth may be required`);
-          else if (statusCode[0] === "4") this.logger_.warn(`not support generally`);
+          else if (statusCode[0] === "4")
+            this.logger_.warn(`not support generally`);
           else if (statusCode[0] === "5")
             this.logger_.warn(`proxy server error, probably no https support`);
 
@@ -212,10 +266,12 @@ export class PCheckerEssential extends PCheckerBase {
     });
   }
 
-  private async getProxyLocation(): Promise<ProxyInfoEssential | ProxyError> {
-    return new Promise<ProxyInfoEssential | ProxyError>((resolve) => {
-      let proxyInfo = {} as ProxyInfoEssential;
-      let errorObject = {} as ProxyError;
+  private async getProxyLocation(): Promise<ProxyInfoEssential> {
+    return new Promise<ProxyInfoEssential>((resolve) => {
+      const proxyInfo = {} as ProxyInfoEssential;
+      proxyInfo.countryCode = "";
+
+      const locationErrors: string[] = [];
       const startTime = new Date().getTime();
 
       const requestOptions = {
@@ -232,8 +288,12 @@ export class PCheckerEssential extends PCheckerBase {
 
       http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
-          errorObject.error = ENUM_ERRORS.StatusCodeError;
-          this.logger_.error(`getProxyLocation bad status code: ${res.statusCode}`);
+          locationErrors.push(
+            customEnumError("GET_LOCATION", ENUM_ERRORS.STATUS_CODE_ERROR)
+          );
+          this.logger_.error(
+            `getProxyLocation bad status code: ${res.statusCode}`
+          );
           res.destroy();
         }
 
@@ -250,29 +310,36 @@ export class PCheckerEssential extends PCheckerBase {
               proxyInfo.countryCode = json.countryCode;
               res.destroy();
             } else {
-              errorObject.error = ENUM_ERRORS.GeoLocationError;
+              locationErrors.push(ENUM_ERRORS.GEO_LOCATION_ERROR);
               this.logger_.error(`getProxyLocation doesnt have county code`);
               res.destroy();
             }
           } catch (error) {
-            errorObject.error = ENUM_ERRORS.JSONParseError;
+            locationErrors.push(
+              customEnumError("GET_LOCATION", ENUM_ERRORS.JSON_PARSE_ERROR)
+            );
             this.logger_.error(`getProxyLocation JSON Parse Error`);
             res.destroy();
           }
         });
 
         res.on("error", (error) => {
-          errorObject.error = ENUM_ERRORS.SocketError;
+          locationErrors.push(
+            customEnumError("GET_LOCATION", ENUM_ERRORS.CONNECTION_ERROR)
+          );
           this.logger_.error(`getProxyLocation connect error: ${error}`);
           res.destroy();
         });
-        
+
         res.on("close", () => {
           const endtime = new Date().getTime() - startTime;
           this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
-          
-          if (Object.keys(errorObject).length !== 0) resolve(errorObject);
-          else resolve(proxyInfo);
+          if (locationErrors.length !== 0) {
+            this.hasErrors_ = true;
+            proxyInfo.errors = locationErrors;
+          }
+
+          resolve(proxyInfo);
         });
       });
     });
@@ -282,39 +349,56 @@ export class PCheckerEssential extends PCheckerBase {
    * @method: checkProxyEssential(),
    * @returns: Promise<Object | Error>
    * Check essential proxy info
-   * @todo: ADD MORE ERROR HANDLING
-   *  - more information error messages on each property
-   *  - handle multiple errors on concurrenct promises (promise all)
-   *  - timeout handling 
    */
-  protected async checkProxyEssential() /* : Promise<ProxyInfoEssential | ProxyError> */ {
+  protected async checkProxyEssential(): Promise<
+    ProxyInfoEssential | ProxyError
+  > {
     const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
 
     // race between timeout and promises
     try {
-      const promises: Promise<ProxyInfoEssential | ProxyError>[] = [
+      const promises: Promise<ProxyInfoEssential>[] = [
         this.checkProxyAnonymityEssential(),
         this.checkProxyHTTPS(),
         this.getProxyLocation(),
       ];
-      let race = await Promise.race([timeoutPromise, Promise.all(promises)]);
-      if (race.hasOwnProperty("timeoutdata")) return race as ProxyError;
+
+      const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
+      if (race.hasOwnProperty("timeoutdata")) {
+        return race as ProxyError;
+      }
 
       const results = race as ProxyInfoEssential[];
       const validResults = results.filter(
         (result) => !(result instanceof Error)
       );
+
+      // allow to handle multiple errors
+      const allErrors: string[] = [];
+
+      // no need to iterate thru validResults if there are no errors
+      // return object will not have errors property
+      if (this.hasErrors_) {
+        validResults.forEach((result) => {
+          if (result.hasOwnProperty("errors")) {
+            allErrors.push(...result.errors);
+          }
+          result.errors = undefined;
+        });
+      }
+
       const essentialInfo: ProxyInfoEssential = Object.assign(
         {},
         validResults[0],
         validResults[1],
         validResults[2]
       );
+      if (allErrors.length !== 0) essentialInfo.errors = allErrors;
 
       return essentialInfo;
     } catch (error) {
       this.logger_.error(`checkProxyEssential error: ${error}`);
-      return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 }
