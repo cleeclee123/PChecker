@@ -10,6 +10,7 @@ export class PCheckerBase {
   protected port_: string;
   protected timeout_: number;
   protected optionspj_: ProxyOptions;
+  protected agent_: http.Agent;
   protected publicIPAddress_: string;
   protected username_: string;
   protected password_: string;
@@ -42,6 +43,7 @@ export class PCheckerBase {
     this.username_ = username;
     this.password_ = password;
     this.optionspj_ = {} as ProxyOptions;
+    this.agent_ = {} as http.Agent;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
     (username !== undefined && password !== undefined) ||
@@ -59,11 +61,17 @@ export class PCheckerBase {
       method: "GET",
       path: PCheckerBase.kProxyJudgeURL,
       headers: {
+        "Connection": "Keep-Alive",
         "User-Agent":
           PCheckerBase.kUserAgents[
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
           ],
       },
+      agent: (this.agent_ = new http.Agent({
+        keepAlive: true,
+        maxSockets: 1,
+        keepAliveMsecs: 3000,
+      })),
     };
 
     this.logger_ = createLogger({
