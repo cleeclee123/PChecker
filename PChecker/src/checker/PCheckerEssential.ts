@@ -219,7 +219,8 @@ export class PCheckerEssential extends PCheckerBase {
         });
       };
 
-      // shamelessly taken from https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts
+      // shamelessly taken from:
+      // https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts
       const onData = () => {
         this.socketEssential_.on("data", (chuck: Buffer) => {
           // console.log(chuck.toLocaleString());
