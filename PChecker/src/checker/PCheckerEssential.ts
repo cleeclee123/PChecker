@@ -27,6 +27,28 @@ export class PCheckerEssential extends PCheckerBase {
     this.hasErrors_ = false;
   }
 
+  /** 
+   * @todo: Fix socket hang up error, Error: read ECONNRESET
+   * node:events:489
+     throw er; // Unhandled 'error' event
+     Error: read ECONNRESET
+         at TCP.onStreamRead (node:internal/stream_base_commons:217:20)
+     Emitted 'error' event on ClientRequest instance at:
+         at Socket.socketErrorListener (node:_http_client:495:9)
+         at Socket.emit (node:events:511:28)
+         at emitErrorNT (node:internal/streams/destroy:151:8)
+         at emitErrorCloseNT (node:internal/streams/destroy:116:3)
+         at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+       errno: -4077,
+       code: 'ECONNRESET',
+       syscall: 'read'
+   *
+   * - https://stackoverflow.com/questions/60370389/how-to-handle-socket-hangup-error-in-nodejs-using-axios
+   * - https://stackoverflow.com/questions/62607651/how-to-handle-error-socket-hang-up-while-waiting-node-and-react
+   * - https://stackoverflow.com/questions/16995184/nodejs-what-does-socket-hang-up-actually-mean
+   * 
+   *  - initial fix: open tcp socket and strean data to buffer, then parse/strip headers
+   * */
   private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
