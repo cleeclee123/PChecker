@@ -4,6 +4,8 @@ import {
   ENUM_DNSLeakCheck,
 } from "./emuns.js";
 
+import http from "http";
+
 // optional type if location data is available
 export type ProxyLocation = {
   data: JSON;
@@ -47,6 +49,7 @@ export type ProxyOptions = {
   method: string;
   path: string;
   headers?: any;
+  agent?: http.Agent;
 };
 
 export type ProxyError = {
