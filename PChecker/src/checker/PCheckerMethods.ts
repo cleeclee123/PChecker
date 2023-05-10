@@ -222,6 +222,7 @@ export class PCheckerMethods extends PCheckerBase {
         const proxyError = {} as ProxyError;
         const startTime = new Date().getTime();
         const buffers = [] as Buffer[];
+        let didConnect = false;
         let buffersLength: number = 0;
 
         const socketConnect = () => {
@@ -236,7 +237,9 @@ export class PCheckerMethods extends PCheckerBase {
           )} HTTP/1.1\r\n`;
 
           this.socket_.on("connect", () => {
+            didConnect = true;
             this.socket_.write(`${payload}\r\n`);
+            this.logger_.info(`https connncted`);
           });
 
           // dont need to buffer any traffic before proxy connect
@@ -248,7 +251,7 @@ export class PCheckerMethods extends PCheckerBase {
           this.socket_.on("end", () => {
             // handle empty response here
             this.logger_.info(
-              `checkProxyHTTPS empty response: https not supported`
+              `checkProxyHTTPS empty response: https may not be supported`
             );
             if (
               proxyInfo.response === undefined ||
@@ -260,6 +263,12 @@ export class PCheckerMethods extends PCheckerBase {
             ) {
               proxyInfo.response = "";
               proxyInfo.statusCode = 500;
+
+              // 204 (No Content) status code indicates that the server has successfully 
+              // fulfilled the request (HTTP CONNECT) and that there is no additional content 
+              // to send in the response payload body
+              if (didConnect) proxyInfo.statusCode = 204;
+
               this.socket_.destroy;
             }
           });

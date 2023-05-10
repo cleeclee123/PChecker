@@ -161,7 +161,10 @@ export class PCheckerEssential extends PCheckerBase {
     return new Promise<ProxyInfoEssential>((resolve) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.httpConnectRes = -1;
-      proxyInfo.https = false;
+
+      let response: string;
+      let statusCode: string;
+      let didConnect: boolean = false;
 
       const httpsErrors: string[] = [];
       const startTime = new Date().getTime();
@@ -180,7 +183,9 @@ export class PCheckerEssential extends PCheckerBase {
         )} HTTP/1.1\r\n`;
 
         this.socketEssential_.on("connect", () => {
+          didConnect = true;
           this.socketEssential_.write(`${payload}\r\n`);
+          this.logger_.info(`https connncted`);
         });
 
         // dont need to buffer any traffic before proxy connect
@@ -192,10 +197,24 @@ export class PCheckerEssential extends PCheckerBase {
         this.socketEssential_.on("end", () => {
           // handle empty response here
           this.logger_.info(
-            `checkProxyHTTPS empty response: https not supported`
+            `checkProxyHTTPS empty response: https may be not supported`
           );
-          if (proxyInfo.https === undefined || !proxyInfo.https) {
-            proxyInfo.https = false;
+          if (
+            proxyInfo.https === undefined ||
+            response === undefined ||
+            statusCode === undefined
+          ) {
+            proxyInfo.https = undefined;
+          }
+
+          // 204 (No Content) status code indicates that the server has successfully
+          // fulfilled the request (HTTP CONNECT) and that there is no additional content
+          // to send in the response payload body
+          if (didConnect) {
+            statusCode = "204";
+            this.logger_.info(
+              "checkProxyHTTPS no content - should have sent 204 status code"
+            );
           }
         });
 
@@ -236,14 +255,10 @@ export class PCheckerEssential extends PCheckerBase {
           }
 
           // parse actual response, usually something like: "HTTP/1.1 200 Connection established"
-          const response = buffered.toString(
-            "ascii",
-            0,
-            buffered.indexOf("\r\n")
-          );
+          response = buffered.toString("ascii", 0, buffered.indexOf("\r\n"));
 
           // parse status code from response
-          const statusCode = String(+response.split(" ")[1]);
+          statusCode = String(+response.split(" ")[1]);
 
           // 403 status code may hint at https support with auth
           // 500 status code may hint at https support
