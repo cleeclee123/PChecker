@@ -61,7 +61,7 @@ export class PCheckerBase {
       method: "GET",
       path: PCheckerBase.kProxyJudgeURL,
       headers: {
-        "Connection": "Keep-Alive",
+        Connection: "Keep-Alive",
         "User-Agent":
           PCheckerBase.kUserAgents[
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
@@ -70,7 +70,7 @@ export class PCheckerBase {
       agent: (this.agent_ = new http.Agent({
         keepAlive: true,
         maxSockets: 1,
-        keepAliveMsecs: 3000,
+        keepAliveMsecs: 1000,
       })),
     };
 
