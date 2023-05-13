@@ -49,7 +49,7 @@ export class PCheckerEssential extends PCheckerBase {
    * 
    *  - initial fix: open tcp socket and strean data to buffer, then parse/strip headers
    * */
-  private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
+  public async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.anonymity = "";
@@ -78,104 +78,141 @@ export class PCheckerEssential extends PCheckerBase {
       }
       // this.logger_.info(`public ip address: ${this.publicIPAddress_}`);
 
-      http.get(this.optionspj_, (res) => {
-        if (res.statusCode !== 200) {
-          anonymityErrors.push(
-            customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.STATUS_CODE_ERROR)
-          );
-          this.logger_.error(
-            `checkProxyAnonymity status code: ${res.statusCode}`
-          );
-          res.destroy();
-        }
-
-        // push data into buffer
-        let body = [] as any[];
-        res.on("data", (chunk) => {
-          body.push(chunk);
-        });
-
-        // done buffering response
-        res.on("end", () => {
-          try {
-            const headers = JSON.parse(Buffer.concat(body).toString());
-            // this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
-
-            // count time that public ip address appers in header
-            let pipCount = 0;
-            let toFlag: any[] = [];
-            let proxyInfoAnonymity;
-
-            if (
-              this.publicIPAddress_ !== undefined &&
-              this.publicIPAddress_ !== ({} as any)
-            ) {
-              for (const key of Object.keys(headers)) {
-                if (key in ENUM_FlaggedHeaderValues) {
-                  if (
-                    String(headers[key as keyof JSON]) === this.publicIPAddress_
-                  ) {
-                    pipCount++;
-                  }
-                  toFlag.push(key);
-                }
-              }
-
-              proxyInfoAnonymity =
-                pipCount === 0
-                  ? ENUM_ProxyAnonymity.Anonymous
-                  : ENUM_ProxyAnonymity.Transparent;
-            } else if (
-              Object.keys(this.publicIPAddress_).length === 0 &&
-              this.publicIPAddress_.constructor === Object
-            ) {
-              proxyInfoAnonymity = undefined;
-            } else {
-              proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
-            }
-
-            proxyInfo.anonymity =
-              toFlag.length === 0
-                ? ENUM_ProxyAnonymity.Elite
-                : proxyInfoAnonymity;
-          } catch (error) {
+      const returnhttpGetObject = () => {
+        const httpGetObject = http.get(this.optionspj_, (res) => {
+          if (res.statusCode !== 200) {
             anonymityErrors.push(
-              customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.JSON_PARSE_ERROR)
+              customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.STATUS_CODE_ERROR)
             );
             this.logger_.error(
-              `checkProxyAnonymity JSON parse error: ${error}`
+              `checkProxyAnonymity status code: ${res.statusCode}`
             );
-          }
-          res.destroy();
-        });
-
-        res.on("error", (error) => {
-          anonymityErrors.push(
-            customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_ERROR)
-          );
-          this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
-          res.destroy();
-        });
-
-        res.on("close", () => {
-          proxyInfo.judgeServerRes = new Date().getTime() - startTime;
-          if (anonymityErrors.length !== 0) {
-            this.hasErrors_ = true;
-            proxyInfo.errors = anonymityErrors;
+            res.destroy();
           }
 
-          // the proxy judge is expected to work
-          if (
-            anonymityErrors.indexOf(
-              `ANONYMITY_CHECK_${ENUM_ERRORS.STATUS_CODE_ERROR}`
-            ) !== -1
-          ) {
-            reject({} as ProxyInfoEssential);
-          } else {
-            resolve(proxyInfo);
-          }
+          // push data into buffer
+          let body = [] as any[];
+          res.on("data", (chunk) => {
+            body.push(chunk);
+          });
+
+          // done buffering response
+          res.on("end", () => {
+            try {
+              const headers = JSON.parse(Buffer.concat(body).toString());
+              // this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
+
+              // count time that public ip address appers in header
+              let pipCount = 0;
+              let toFlag: any[] = [];
+              let proxyInfoAnonymity;
+
+              if (
+                this.publicIPAddress_ !== undefined &&
+                this.publicIPAddress_ !== ({} as any)
+              ) {
+                for (const key of Object.keys(headers)) {
+                  if (key in ENUM_FlaggedHeaderValues) {
+                    if (
+                      String(headers[key as keyof JSON]) ===
+                      this.publicIPAddress_
+                    ) {
+                      pipCount++;
+                    }
+                    toFlag.push(key);
+                  }
+                }
+
+                proxyInfoAnonymity =
+                  pipCount === 0
+                    ? ENUM_ProxyAnonymity.Anonymous
+                    : ENUM_ProxyAnonymity.Transparent;
+              } else if (
+                Object.keys(this.publicIPAddress_).length === 0 &&
+                this.publicIPAddress_.constructor === Object
+              ) {
+                proxyInfoAnonymity = undefined;
+              } else {
+                proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
+              }
+
+              proxyInfo.anonymity =
+                toFlag.length === 0
+                  ? ENUM_ProxyAnonymity.Elite
+                  : proxyInfoAnonymity;
+            } catch (error) {
+              anonymityErrors.push(
+                customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.JSON_PARSE_ERROR)
+              );
+              this.logger_.error(
+                `checkProxyAnonymity JSON parse error: ${error}`
+              );
+            }
+            res.destroy();
+          });
+
+          res.on("error", (error) => {
+            anonymityErrors.push(
+              customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_ERROR)
+            );
+            this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
+            res.destroy();
+            // errorCallback(error, null, res);
+          });
+
+          res.on("close", () => {
+            proxyInfo.judgeServerRes = new Date().getTime() - startTime;
+            if (anonymityErrors.length !== 0) {
+              this.hasErrors_ = true;
+              proxyInfo.errors = anonymityErrors;
+            }
+
+            // the proxy judge is expected to work
+            if (
+              anonymityErrors.indexOf(
+                `ANONYMITY_CHECK_${ENUM_ERRORS.STATUS_CODE_ERROR}`
+              ) !== -1
+            ) {
+              reject({} as ProxyInfoEssential);
+            } else {
+              resolve(proxyInfo);
+            }
+          });
         });
+
+        return httpGetObject;
+      };
+
+      returnhttpGetObject();
+
+      returnhttpGetObject().on("error", (error) => {
+        this.logger_.error(`checkProxyAnonymity socket hang up error`);
+        returnhttpGetObject().destroy();
       });
+
+      // this will handle socket hang up error/allow us to handle the error
+      returnhttpGetObject().end();
+
+      // const errorCallback = (
+      //   error: Error,
+      //   data: any,
+      //   message: http.IncomingMessage
+      // ) => {
+      //   if (!error) return;
+
+      //   // handle http get object
+      //   if (error && message === null) {
+      //     this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
+      //   }
+      //   // handle http get response object
+      //   else if (error) {
+      //     anonymityErrors.push(
+      //       customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_ERROR)
+      //     );
+      //     this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
+      //     message.destroy();
+      //   }
+      // };
     });
   }
 
