@@ -336,62 +336,93 @@ export class PCheckerEssential extends PCheckerBase {
         },
       };
 
-      http.get(requestOptions, (res) => {
-        if (res.statusCode !== 200) {
-          locationErrors.push(
-            customEnumError("GET_LOCATION", ENUM_ERRORS.STATUS_CODE_ERROR)
-          );
-          this.logger_.error(
-            `getProxyLocation bad status code: ${res.statusCode}`
-          );
-          res.destroy();
-        }
-
-        res.setEncoding("utf8");
-        let responseData = [] as string[];
-        res.on("data", (data) => {
-          responseData.push(data);
-        });
-
-        res.on("end", () => {
-          try {
-            const json: any = JSON.parse(responseData.join(""));
-            if (json.hasOwnProperty("countryCode")) {
-              proxyInfo.countryCode = json.countryCode;
-              res.destroy();
-            } else {
-              locationErrors.push(ENUM_ERRORS.GEO_LOCATION_ERROR);
-              this.logger_.error(`getProxyLocation doesnt have county code`);
-              res.destroy();
-            }
-          } catch (error) {
+      const httpGetRequestObject = () => {
+        const httpProxyRequestObject = http.get(requestOptions, (res) => {
+          if (res.statusCode !== 200) {
             locationErrors.push(
-              customEnumError("GET_LOCATION", ENUM_ERRORS.JSON_PARSE_ERROR)
+              customEnumError("GET_LOCATION", ENUM_ERRORS.STATUS_CODE_ERROR)
             );
-            this.logger_.error(`getProxyLocation JSON Parse Error`);
+            this.logger_.error(
+              `getProxyLocation bad status code: ${res.statusCode}`
+            );
             res.destroy();
           }
+
+          res.setEncoding("utf8");
+          let responseData = [] as string[];
+          res.on("data", (data) => {
+            responseData.push(data);
+          });
+
+          res.on("end", () => {
+            try {
+              const json: any = JSON.parse(responseData.join(""));
+              if (json.hasOwnProperty("countryCode")) {
+                proxyInfo.countryCode = json.countryCode;
+                res.destroy();
+              } else {
+                locationErrors.push(ENUM_ERRORS.GEO_LOCATION_ERROR);
+                this.logger_.error(`getProxyLocation doesnt have county code`);
+                res.destroy();
+              }
+            } catch (error) {
+              locationErrors.push(
+                customEnumError("GET_LOCATION", ENUM_ERRORS.JSON_PARSE_ERROR)
+              );
+              this.logger_.error(`getProxyLocation JSON Parse Error`);
+              res.destroy();
+            }
+          });
+
+          res.on("error", (error) => {
+            locationErrors.push(
+              customEnumError("GET_LOCATION", ENUM_ERRORS.CONNECTION_ERROR)
+            );
+            this.logger_.error(`getProxyLocation connect error: ${error}`);
+            res.destroy();
+          });
+
+          res.on("close", () => {
+            const endtime = new Date().getTime() - startTime;
+            this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
+            if (locationErrors.length !== 0) {
+              this.hasErrors_ = true;
+              proxyInfo.errors = locationErrors;
+            }
+
+            resolve(proxyInfo);
+          });
         });
 
-        res.on("error", (error) => {
+        httpProxyRequestObject.on("error", (error) => {
+          this.logger_.error(`GET_LOCATION socket hang up error`);
           locationErrors.push(
-            customEnumError("GET_LOCATION", ENUM_ERRORS.CONNECTION_ERROR)
+            customEnumError("GET_LOCATION", ENUM_ERRORS.SOCKET_HANG_UP)
           );
-          this.logger_.error(`getProxyLocation connect error: ${error}`);
-          res.destroy();
+          const endtime = new Date().getTime() - startTime;
+          this.logger_.info(`getProxyLocation error time: ${endtime} ms`);
+
+          httpProxyRequestObject.destroy();
         });
 
-        res.on("close", () => {
-          const endtime = new Date().getTime() - startTime;
-          this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
+        httpProxyRequestObject.on("end", () => {
+          proxyInfo.anonymity = undefined;
+        });
+
+        httpProxyRequestObject.on("close", () => {
           if (locationErrors.length !== 0) {
             this.hasErrors_ = true;
             proxyInfo.errors = locationErrors;
           }
-
           resolve(proxyInfo);
         });
-      });
+
+        httpProxyRequestObject.end();
+
+        return httpProxyRequestObject;
+      };
+
+      httpGetRequestObject();
     });
   }
 
@@ -400,9 +431,7 @@ export class PCheckerEssential extends PCheckerBase {
    * @returns: Promise<Object | Error>
    * Check essential proxy info
    */
-  protected async checkProxyEssential(): Promise<
-    ProxyInfoEssential | ProxyError
-  > {
+  public async checkProxyEssential(): Promise<ProxyInfoEssential | ProxyError> {
     const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
 
     // race between timeout and promises
