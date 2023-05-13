@@ -37,6 +37,7 @@ export enum ENUM_ERRORS {
   GEO_LOCATION_ERROR = "GEO_LOCATION_ERROR",
   PUBLIC_IP_ADDRESS_ERROR = "PUBLIC_IP_ADDRESS_ERROR",
   NO_DNS_SERVERS = "NO_DNS_SERVERS",
+  SOCKET_HANG_UP = "SOCKET_HANG_UP",
 }
 
 export const customEnumError = (customMessage: string, error: ENUM_ERRORS) => {
