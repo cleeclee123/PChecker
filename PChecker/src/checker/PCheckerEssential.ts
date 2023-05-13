@@ -27,29 +27,10 @@ export class PCheckerEssential extends PCheckerBase {
     this.hasErrors_ = false;
   }
 
-  /** 
-   * @todo: Fix socket hang up error, Error: read ECONNRESET
-   * node:events:489
-     throw er; // Unhandled 'error' event
-     Error: read ECONNRESET
-         at TCP.onStreamRead (node:internal/stream_base_commons:217:20)
-     Emitted 'error' event on ClientRequest instance at:
-         at Socket.socketErrorListener (node:_http_client:495:9)
-         at Socket.emit (node:events:511:28)
-         at emitErrorNT (node:internal/streams/destroy:151:8)
-         at emitErrorCloseNT (node:internal/streams/destroy:116:3)
-         at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
-       errno: -4077,
-       code: 'ECONNRESET',
-       syscall: 'read'
-   *
-   * - https://stackoverflow.com/questions/60370389/how-to-handle-socket-hangup-error-in-nodejs-using-axios
-   * - https://stackoverflow.com/questions/62607651/how-to-handle-error-socket-hang-up-while-waiting-node-and-react
-   * - https://stackoverflow.com/questions/16995184/nodejs-what-does-socket-hang-up-actually-mean
-   * 
-   *  - initial fix: open tcp socket and strean data to buffer, then parse/strip headers
-   * */
-  public async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
+  /**
+   * @todo: break this fat function up
+   */
+  private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.anonymity = "";
@@ -78,8 +59,8 @@ export class PCheckerEssential extends PCheckerBase {
       }
       // this.logger_.info(`public ip address: ${this.publicIPAddress_}`);
 
-      const returnhttpGetObject = () => {
-        const httpGetObject = http.get(this.optionspj_, (res) => {
+      const httpGetRequestObject = () => {
+        const httpProxyRequestObject = http.get(this.optionspj_, (res) => {
           if (res.statusCode !== 200) {
             anonymityErrors.push(
               customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.STATUS_CODE_ERROR)
@@ -180,39 +161,33 @@ export class PCheckerEssential extends PCheckerBase {
           });
         });
 
-        return httpGetObject;
+        httpProxyRequestObject.on("error", (error) => {
+          this.logger_.error(`checkProxyAnonymity socket hang up error`);
+          anonymityErrors.push(
+            customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_HANG_UP)
+          );
+          httpProxyRequestObject.destroy();
+        });
+
+        httpProxyRequestObject.on("end", () => {
+          proxyInfo.anonymity = undefined;
+        });
+
+        httpProxyRequestObject.on("close", () => {
+          proxyInfo.judgeServerRes = new Date().getTime() - startTime;
+          if (anonymityErrors.length !== 0) {
+            this.hasErrors_ = true;
+            proxyInfo.errors = anonymityErrors;
+          }
+          resolve(proxyInfo);
+        });
+
+        httpProxyRequestObject.end();
+
+        return httpProxyRequestObject;
       };
 
-      returnhttpGetObject();
-
-      returnhttpGetObject().on("error", (error) => {
-        this.logger_.error(`checkProxyAnonymity socket hang up error`);
-        returnhttpGetObject().destroy();
-      });
-
-      // this will handle socket hang up error/allow us to handle the error
-      returnhttpGetObject().end();
-
-      // const errorCallback = (
-      //   error: Error,
-      //   data: any,
-      //   message: http.IncomingMessage
-      // ) => {
-      //   if (!error) return;
-
-      //   // handle http get object
-      //   if (error && message === null) {
-      //     this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
-      //   }
-      //   // handle http get response object
-      //   else if (error) {
-      //     anonymityErrors.push(
-      //       customEnumError("ANONYMITY_CHECK", ENUM_ERRORS.SOCKET_ERROR)
-      //     );
-      //     this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
-      //     message.destroy();
-      //   }
-      // };
+      httpGetRequestObject();
     });
   }
 
