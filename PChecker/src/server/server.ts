@@ -1,17 +1,10 @@
 import express, { Request, Response } from "express";
 import * as P from "../checker/PChecker.js";
+import * as pq from "mypqueue";
 
 const app = express();
 const localport = 8181;
-
-// implement object pool later
-// const checker = new P.PChecker()
-// const host: string= "";
-// const port: string = "";
-// const timeout: string = "";
-// const publicIP: string = "";
-// const username: string = "";
-// const password: string = "";
+const queue = new pq.MyConcurrentPromiseQueue();
 
 function validateIPAddress(req: Request, res: Response, next: Function) {
   const proxyHost = req.query.host;
@@ -76,33 +69,38 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.get(
+  "/checkessential",
+  validateIPAddress,
+  validatePortNumber,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
+
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkEssential())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
+
+app.get(
   "/checkanonymity",
   validateIPAddress,
   validatePortNumber,
-  validateTimeout,
-  async (req: Request, res: Response) => {
-    try {
-      let proxyHost = req.query.host;
-      let proxyPort = req.query.port;
-      let proxyTimeout = req.query.to;
-      // let proxyPublicIP = req.query.pip;
-      // let proxyUsername = req.query.un;
-      // let proxyPassword = req.query.pw;
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-      let p = new P.PChecker(
-        String(proxyHost),
-        String(proxyPort),
-        String(proxyTimeout)
-        // String(proxyPublicIP),
-        // String(proxyUsername),
-        // String(proxyPassword)
-      );
-
-      let check = await p.checkAnonymity();
-      res.send({ data: check });
-    } catch (error) {
-      res.send({ data: error });
-    }
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkAnonymity())
+      .then((result) => {
+        res.json(result);
+      });
   }
 );
 
@@ -110,30 +108,17 @@ app.get(
   "/checkhttps",
   validateIPAddress,
   validatePortNumber,
-  validateTimeout,
-  async (req: Request, res: Response) => {
-    try {
-      let proxyHost = req.query.host;
-      let proxyPort = req.query.port;
-      let proxyTimeout = req.query.to;
-      // let proxyPublicIP = req.query.pip;
-      // let proxyUsername = req.query.un;
-      // let proxyPassword = req.query.pw;
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-      let p = new P.PChecker(
-        String(proxyHost),
-        String(proxyPort),
-        String(proxyTimeout)
-        // String(proxyPublicIP),
-        // String(proxyUsername),
-        // String(proxyPassword)
-      );
-
-      let check = await p.checkHTTPS();
-      res.send({ data: check });
-    } catch (error) {
-      res.send({ data: error });
-    }
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkHTTPS())
+      .then((result) => {
+        res.json(result);
+      });
   }
 );
 
@@ -141,30 +126,17 @@ app.get(
   "/checkcontent",
   validateIPAddress,
   validatePortNumber,
-  validateTimeout,
-  async (req: Request, res: Response) => {
-    try {
-      let proxyHost = req.query.host;
-      let proxyPort = req.query.port;
-      let proxyTimeout = req.query.to;
-      // let proxyPublicIP = req.query.pip;
-      // let proxyUsername = req.query.un;
-      // let proxyPassword = req.query.pw;
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-      let p = new P.PChecker(
-        String(proxyHost),
-        String(proxyPort),
-        String(proxyTimeout)
-        // String(proxyPublicIP),
-        // String(proxyUsername),
-        // String(proxyPassword)
-      );
-
-      let check = await p.checkContent();
-      res.send({ data: check });
-    } catch (error) {
-      res.send({ data: error });
-    }
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkContent())
+      .then((result) => {
+        res.json(result);
+      });
   }
 );
 
@@ -172,30 +144,17 @@ app.get(
   "/checkgoogle",
   validateIPAddress,
   validatePortNumber,
-  validateTimeout,
-  async (req: Request, res: Response) => {
-    try {
-      let proxyHost = req.query.host;
-      let proxyPort = req.query.port;
-      let proxyTimeout = req.query.to;
-      // let proxyPublicIP = req.query.pip;
-      // let proxyUsername = req.query.un;
-      // let proxyPassword = req.query.pw;
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-      let p = new P.PChecker(
-        String(proxyHost),
-        String(proxyPort),
-        String(proxyTimeout)
-        // String(proxyPublicIP),
-        // String(proxyUsername),
-        // String(proxyPassword)
-      );
-
-      let check = await p.checkGoogle();
-      res.send({ data: check });
-    } catch (error) {
-      res.send({ data: error });
-    }
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkGoogle())
+      .then((result) => {
+        res.json(result);
+      });
   }
 );
 
@@ -203,30 +162,53 @@ app.get(
   "/checkdnsleak",
   validateIPAddress,
   validatePortNumber,
-  validateTimeout,
-  async (req: Request, res: Response) => {
-    try {
-      let proxyHost = req.query.host;
-      let proxyPort = req.query.port;
-      let proxyTimeout = req.query.to;
-      // let proxyPublicIP = req.query.pip;
-      // let proxyUsername = req.query.un;
-      // let proxyPassword = req.query.pw;
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-      let p = new P.PChecker(
-        String(proxyHost),
-        String(proxyPort),
-        String(proxyTimeout)
-        // String(proxyPublicIP),
-        // String(proxyUsername),
-        // String(proxyPassword)
-      );
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkDNSLeak())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
-      let check = await p.checkDNSLeak();
-      res.send({ data: check });
-    } catch (error) {
-      res.send({ data: error });
-    }
+app.get(
+  "/checklocation",
+  validateIPAddress,
+  validatePortNumber,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
+
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkLocation())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
+
+app.get(
+  "/checkwebrtcleak",
+  validateIPAddress,
+  validatePortNumber,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
+
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkWebRTCLeak())
+      .then((result) => {
+        res.json(result);
+      });
   }
 );
 
