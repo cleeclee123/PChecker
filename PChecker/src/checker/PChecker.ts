@@ -127,6 +127,21 @@ export class PChecker extends PCheckerMixin {
 
     return geolocation;
   }
+  
+  /**
+   * @method: checkWebRTCLeak()
+   * 
+   * 
+  */
+  public async checkWebRTCLeak(): Promise<any> {
+    this.nullChecks();
+    const leakCheck = await this.checkProxyWebRTCLeak();
+    this.clearTimeouts();
+
+    return leakCheck;
+  }
+
+
 
   /**
    * @method: checkEssential()

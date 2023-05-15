@@ -3,6 +3,7 @@
 import http from "http";
 import net from "net";
 import dns from "dns";
+import puppeteer, { Browser, Page } from "puppeteer";
 import { promisify } from "util";
 import {
   ProxyOptions,
@@ -264,8 +265,8 @@ export class PCheckerMethods extends PCheckerBase {
               proxyInfo.response = "";
               proxyInfo.statusCode = 500;
 
-              // 204 (No Content) status code indicates that the server has successfully 
-              // fulfilled the request (HTTP CONNECT) and that there is no additional content 
+              // 204 (No Content) status code indicates that the server has successfully
+              // fulfilled the request (HTTP CONNECT) and that there is no additional content
               // to send in the response payload body
               if (didConnect) proxyInfo.statusCode = 204;
 
@@ -742,48 +743,91 @@ export class PCheckerMethods extends PCheckerBase {
     }
   }
 
-  // find a way to make this actually work
-  // /**
-  //  * @method: checkProxyWebRTCLeak, private helper function
-  //  * @returns: Promise<bool | Error>
-  //  * Check if proxy server will cause a WebRTC leak (BASH.WS is goat)
-  //  */
-  // protected async checkProxyWebRTCLeak(): Promise<boolean | ProxyError> {
-  //   const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
+  /**
+   * @method: checkProxyWebRTCLeak, private helper function
+   * @returns: Promise<bool | Error>
+   * Check if proxy server will cause a WebRTC leak
+   */
+  protected async checkProxyWebRTCLeak(): Promise<boolean | ProxyError> {
+    const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
 
-  //   const endpointOptions = {
-  //     host: this.host_,
-  //     port: Number(this.port_),
-  //     path: "http://myproxyjudgeclee.software:8181/webleakcheck",
-  //     headers: {
-  //       "User-Agent":
-  //         PCheckerMethods.kUserAgents[
-  //           Math.floor(Math.random() * PCheckerMethods.kUserAgents.length)
-  //         ],
-  //     },
-  //   };
+    // creates new WebRTC connection and gather ICE candidates
+    const getCandidates = async () => {
+      let browser: Browser | null = null;
+      let page: Page | null = null;
 
-  //   const webrtcCheckPromise: Promise<boolean | ProxyError> = new Promise(
-  //     (resolve, reject) => {
-  //       http.get(endpointOptions, (res) => {
-  //         // // console.log(res.statusCode);
-  //         if (res.statusCode !== 200) {
-  //           resolve(false);
-  //         }
+      try {
+        const proxy = `${this.host_}:${this.port_}`;
+        browser = await puppeteer.launch({
+          args: [`--proxy-server=${proxy}`],
+        });
 
-  //         res.on("data", (data) => {
-  //           // // console.log(data.toString());
-  //         });
+        page = await browser.newPage();
 
-  //       });
-  //     }
-  //   );
+        const candidates = await page.evaluate(() => {
+          return new Promise<string[]>((resolve) => {
+            const googleStunServers = [
+              "stun.l.google.com:19302",
+              "stun1.l.google.com:19302",
+              "stun2.l.google.com:19302",
+              "stun3.l.google.com:19302",
+              "stun4.l.google.com:19302",
+            ];
+            const candidates: string[] = [];
+            const pc = new RTCPeerConnection({
+              iceServers: [
+                {
+                  urls: `stun:${
+                    googleStunServers[
+                      Math.floor(Math.random() * googleStunServers.length)
+                    ]
+                  }`,
+                },
+              ],
+            });
 
-  //   try {
-  //     return await Promise.race([webrtcCheckPromise, timeoutPromise]);
-  //   } catch (error) {
-  //     // console.log(`google check PromiseRace Error: ${error}`);
-  //     return { error: ENUM_ERRORS.PromiseRaceError } as ProxyError;
-  //   }
-  // }
+            pc.onicecandidate = (event) => {
+              if (event.candidate) {
+                candidates.push(event.candidate.candidate);
+              } else {
+                // ICE gathering finished, resolve the promise
+                resolve(candidates);
+              }
+            };
+
+            // Create a new data channel (this will trigger ICE gathering)
+            pc.createDataChannel("channel");
+
+            // Create an offer (this will trigger ICE gathering in some browsers)
+            pc.createOffer().then((offer) => pc.setLocalDescription(offer));
+          });
+        });
+        this.logger_.info(candidates);
+        return candidates;
+      } catch (error) {
+        console.error("An error occurred:", error);
+      } finally {
+        if (page) await page.close();
+        if (browser) await browser.close();
+      }
+    };
+
+    // checks if leaks public ip address
+    const hasLeak = async () => {
+      const candidates = await getCandidates();
+      for (let i = 0; i < candidates.length; i++) {
+        const candidate = candidates[i];
+        if (candidate.indexOf(this.publicIPAddress_)) return true;
+      }
+
+      return false;
+    };
+
+    try {
+      return Promise.race([hasLeak(), timeoutPromise]);
+    } catch (error) {
+      this.logger_.error(`webrtc leak check PromiseRace Error: ${error}`);
+      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+    }
+  }
 }
