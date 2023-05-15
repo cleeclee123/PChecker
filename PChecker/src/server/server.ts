@@ -3,7 +3,7 @@ import * as P from "../checker/PChecker.js";
 import * as pq from "mypqueue";
 
 const app = express();
-const localport = 8181;
+const localport = 6969;
 const queue = new pq.MyConcurrentPromiseQueue();
 
 function validateIPAddress(req: Request, res: Response, next: Function) {
