@@ -107,6 +107,7 @@ export type ProxyInfoEssential = {
   httpConnectRes?: number;
   countryCode?: string;
   errors?: string[];
+  proxyString?: string;
 };
 
 export type PCheckerOptions = {

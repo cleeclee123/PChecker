@@ -49,7 +49,7 @@ export class PCheckerMethods extends PCheckerBase {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerMethods.injectedTest1,
+      path: "http://azenv.net/",
       headers: {
         "User-Agent":
           PCheckerMethods.kUserAgents[

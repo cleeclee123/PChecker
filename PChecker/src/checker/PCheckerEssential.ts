@@ -471,6 +471,7 @@ export class PCheckerEssential extends PCheckerBase {
         validResults[1],
         validResults[2]
       );
+      essentialInfo.proxyString = `${this.host_}:${this.port_}`;
       if (allErrors.length !== 0) essentialInfo.errors = allErrors;
 
       return essentialInfo;
