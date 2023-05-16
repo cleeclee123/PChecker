@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import { PCheckerOptions } from "../checker/types.js";
 import * as P from "../checker/PChecker.js";
-import { MyConcurrentPromiseQueue } from "../pqueue/pqueue.js";
+import { MyConcurrentPromiseQueue } from "../checker/pqueue.js";
 
 const app = express();
 const localport = 6969;
