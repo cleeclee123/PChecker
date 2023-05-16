@@ -14,6 +14,7 @@ import {
   ProxyDNSCheck,
   DNSResponseServer,
   ProxyLocation,
+  PCheckerOptions,
 } from "./types.js";
 import {
   ENUM_FlaggedHeaderValues,
@@ -24,6 +25,11 @@ import {
 } from "./emuns.js";
 import { PCheckerBase } from "./PCheckerBase.js";
 
+/**
+ * @todo
+ *  - add more error handling
+ *  - checkContent() 302 fix
+ */
 export class PCheckerMethods extends PCheckerBase {
   private socket_: net.Socket;
   private optionsTestDomain_: ProxyOptions;
@@ -33,24 +39,17 @@ export class PCheckerMethods extends PCheckerBase {
 
   // injection testing
   /** @todo: move to testing infra */
-  // private static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
-  // private static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
+  private static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
+  private static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
-  constructor(
-    host?: string,
-    port?: string,
-    timeout?: string,
-    publicIPAddress?: string,
-    username?: string,
-    password?: string
-  ) {
-    super(host, port, timeout, publicIPAddress, username, password);
+  constructor(pcheckerOptions?: PCheckerOptions) {
+    super(pcheckerOptions);
 
     this.optionsTestDomain_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerMethods.kTestDomain,
+      path: PCheckerMethods.injectedTest1,
       headers: {
         "User-Agent":
           PCheckerMethods.kUserAgents[
@@ -368,9 +367,14 @@ export class PCheckerMethods extends PCheckerBase {
     const proxyResponse: Promise<string[] | ProxyError> = new Promise(
       (resolve, reject) => {
         let errorObject = {} as ProxyError;
+        let statuscode: number = 0;
 
         http.get(this.optionsTestDomain_, (res) => {
-          if (res.statusCode !== 200) {
+          statuscode = res.statusCode;
+          if (
+            String(res.statusCode)[0] !== "2" &&
+            String(res.statusCode)[0] !== "3"
+          ) {
             this.logger_.error(
               `checkProxyContent status code: ${res.statusCode}`
             );
@@ -382,14 +386,29 @@ export class PCheckerMethods extends PCheckerBase {
           const body = [] as string[];
           res.on("data", (chunk: string) => {
             body.push(chunk);
+            this.logger_.info(`checkProxyContent chunk: ${chunk}`);
           });
 
           let response: string[] = [];
           res.on("end", () => {
-            body[0]
-              .split("\n")
-              .forEach((line: string) => response.push(line.trim()));
-            response = response.filter((v) => v.length !== 0);
+            if (body.length === 0) {
+              if (statuscode === 302) {
+                this.logger_.info(
+                  `proxy may have erased all website content on redirect : status code ${statuscode}`
+                );
+              } else {
+                errorObject.error = ENUM_ERRORS.PROXY_JUDGE_EMPTY_RESPONSE;
+                this.logger_.error(
+                  "checkProxyContent empty response from proxy judge"
+                );
+              }
+              res.destroy();
+            } else {
+              body[0]
+                .split("\n")
+                .forEach((line: string) => response.push(line.trim()));
+              response = response.filter((v) => v.length !== 0);
+            }
           });
 
           res.on("error", (error) => {
@@ -414,60 +433,65 @@ export class PCheckerMethods extends PCheckerBase {
     );
 
     const contentCheck: Promise<ProxyContentCheck | ProxyError> = new Promise(
-      (resolve) => {
+      (resolve, reject) => {
         let content = {} as ProxyContentCheck;
         let response: string[] = [];
 
-        proxyResponse.then((res: string[] | ProxyError) => {
-          // response type check
-          if (res.hasOwnProperty("error")) {
-            resolve(res as ProxyError);
-          } else {
-            response = res as string[];
-          }
-
-          // check if data/html has been alter after connecting with proxy server
-          const hasChanged = (): boolean => {
-            let i = expectedResponse.length;
-            while (i--) {
-              if (expectedResponse[i] !== response[i]) {
-                return true;
-              }
+        proxyResponse
+          .then((res: string[] | ProxyError) => {
+            // response type check
+            if (res.hasOwnProperty("error")) {
+              resolve(res as ProxyError);
+            } else {
+              response = res as string[];
             }
-            return false;
-          };
 
-          // check if data/html has any suspicious patterns
-          // reference: https://www.acunetix.com/vulnerabilities/web/html-injection/
-          // prettier-ignore
-          const hasSuspicious = () /*:  boolean */ => {
-            response.forEach((e) => {
-              if (/<script[^>]*>/i.test(e)) content.hasScripts = true;
-              if (/<iframe[^>]*>/i.test(e)) content.hasIframes = true;
-              if (/<div[^>]*>/i.test(e)) content.hasUnwantedContent = true;
-              if (/(class|id)\s*=\s*["'][^"']*ad[^"']*["']/i.test(e)) content.hasAds = true;
-              if (/(class|id)\s*=\s*["'][^"']*?(?:ad|banner|popup|interstitial|advert)[^"']*?["']/i) content.hasAds = true;
-              if (/<script>.*eval\s*\(.*<\/script>/.test(e)) content.hasExecution = true;
-              if (/data:text\/(html|javascript);base64,/i.test(e)) content.hasEncodedContent = true;
-              if (/\s+on[a-z]+ *= *["']?[^"'>]+["']?/i.test(e)) content.hasEventHandler = true;
-              if (/(?:eval|document\.write|setTimeout|setInterval)\s*\(/i.test(e)) content.hasFunctions = true;
-              if (/(?:http:\/\/|https:\/\/|\/\/)[\w-_.]+(?:\.[\w-_]+)+/i.test(e)) content.hasRedirect = true;
-              if (/(?:googlesyndication\.com|doubleclick\.net|google-analytics\.com)/i.test(e)) content.hasTracker = true;
-              if (/(?:coinhive\.min\.js|coinhive\.com)/i.test(e)) content.hasMiner = true;
-            });
+            // check if data/html has been alter after connecting with proxy server
+            const hasChanged = (): boolean => {
+              let i = expectedResponse.length;
+              while (i--) {
+                if (expectedResponse[i] !== response[i]) {
+                  return true;
+                }
+              }
+              return false;
+            };
 
-            resolve(content);
-          };
+            // check if data/html has any suspicious patterns
+            // reference: https://www.acunetix.com/vulnerabilities/web/html-injection/
+            // prettier-ignore
+            const hasSuspicious = () /*:  boolean */ => {
+              response.forEach((e) => {
+                if (/<script[^>]*>/i.test(e)) content.hasScripts = true;
+                if (/<iframe[^>]*>/i.test(e)) content.hasIframes = true;
+                if (/<div[^>]*>/i.test(e)) content.hasUnwantedContent = true;
+                if (/(class|id)\s*=\s*["'][^"']*ad[^"']*["']/i.test(e)) content.hasAds = true;
+                if (/(class|id)\s*=\s*["'][^"']*?(?:ad|banner|popup|interstitial|advert)[^"']*?["']/i) content.hasAds = true;
+                if (/<script>.*eval\s*\(.*<\/script>/.test(e)) content.hasExecution = true;
+                if (/data:text\/(html|javascript);base64,/i.test(e)) content.hasEncodedContent = true;
+                if (/\s+on[a-z]+ *= *["']?[^"'>]+["']?/i.test(e)) content.hasEventHandler = true;
+                if (/(?:eval|document\.write|setTimeout|setInterval)\s*\(/i.test(e)) content.hasFunctions = true;
+                if (/(?:http:\/\/|https:\/\/|\/\/)[\w-_.]+(?:\.[\w-_]+)+/i.test(e)) content.hasRedirect = true;
+                if (/(?:googlesyndication\.com|doubleclick\.net|google-analytics\.com)/i.test(e)) content.hasTracker = true;
+                if (/(?:coinhive\.min\.js|coinhive\.com)/i.test(e)) content.hasMiner = true;
+              });
+  
+              resolve(content);
+            };
 
-          // no needs to run hasSuspicious() if not changed
-          if (hasChanged()) {
-            content.hasChanged = true;
-            hasSuspicious();
-          } else {
-            content.hasChanged = false;
-            resolve(content);
-          }
-        });
+            // no needs to run hasSuspicious() if not changed
+            if (hasChanged()) {
+              content.hasChanged = true;
+              hasSuspicious();
+            } else {
+              content.hasChanged = false;
+              resolve(content);
+            }
+          })
+          .catch((error) => {
+            this.logger_.error(`checkProxyContent error: ${error}`);
+            reject(error);
+          });
       }
     );
 

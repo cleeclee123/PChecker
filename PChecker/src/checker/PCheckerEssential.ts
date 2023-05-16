@@ -3,7 +3,7 @@
 import http from "http";
 import net from "net";
 import { PCheckerBase } from "./PCheckerBase.js";
-import { ProxyInfoEssential, ProxyError } from "./types.js";
+import { ProxyInfoEssential, ProxyError, PCheckerOptions } from "./types.js";
 import {
   ENUM_FlaggedHeaderValues,
   ENUM_ProxyAnonymity,
@@ -11,25 +11,24 @@ import {
   customEnumError,
 } from "./emuns.js";
 
+/**
+ * @todo:
+ *  - break all fat functions up
+ *  - error callback function, specfically for socket hang up errors (https://stackoverflow.com/questions/10814481/how-to-debug-a-socket-hang-up-error-in-nodejs#:~:text=function%20callback(error%2C%20data)%20%7B%0A%20%20%20%20if%20(error)%20%7B%0A%20%20%20%20%20%20%20%20console.error(%27Something%20went%20wrong!%27)%3B%0A%20%20%20%20%20%20%20%20console.error(error)%3B%0A%20%20%20%20%7D%0A%20%20%20%20else%20%7B%0A%20%20%20%20%20%20%20%20console.log(%27All%20went%20fine.%27)%3B%0A%20%20%20%20%20%20%20%20console.log(data)%3B%0A%20%20%20%20%7D%0A%7D)
+ *  - flag for proxyLocation function (true runs proxyLocation, false does not)
+ *  - add constructor options for class (PCheckerBase, PCheckerEssential, PCheckerMethods)
+ *  - write and deploy server
+ *  - write tests/build out testing infrastructure
+ */
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
   private hasErrors_: boolean;
 
-  constructor(
-    host?: string,
-    port?: string,
-    timeout?: string,
-    publicIPAddress?: string,
-    username?: string,
-    password?: string
-  ) {
-    super(host, port, timeout, publicIPAddress, username, password);
+  constructor(pcheckerOptions?: PCheckerOptions) {
+    super(pcheckerOptions);
     this.hasErrors_ = false;
   }
 
-  /**
-   * @todo: break this fat function up
-   */
   private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;

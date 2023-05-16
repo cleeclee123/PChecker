@@ -108,3 +108,12 @@ export type ProxyInfoEssential = {
   countryCode?: string;
   errors?: string[];
 };
+
+export type PCheckerOptions = {
+  host?: string;
+  port?: string;
+  timeout?: string;
+  publicIPAddress?: string;
+  username?: string;
+  password?: string;
+};

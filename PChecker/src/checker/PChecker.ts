@@ -11,6 +11,7 @@ import {
   ProxyContentCheck,
   ProxyDNSCheck,
   ProxyLocation,
+  PCheckerOptions,
 } from "./types.js";
 
 function applyMixins(derivedCtor: any, baseCtors: any[]) {
@@ -24,30 +25,16 @@ function applyMixins(derivedCtor: any, baseCtors: any[]) {
 }
 
 class PCheckerMixin extends PCheckerBase {
-  constructor(
-    host?: string,
-    port?: string,
-    timeout?: string,
-    publicIPAddress?: string,
-    username?: string,
-    password?: string
-  ) {
-    super(host, port, timeout, publicIPAddress, username, password);
+  constructor(pcheckerOptions?: PCheckerOptions) {
+    super(pcheckerOptions);
   }
 }
 interface PCheckerMixin extends PCheckerMethods, PCheckerEssential {}
 applyMixins(PCheckerMixin, [PCheckerMethods, PCheckerEssential]);
 
 export class PChecker extends PCheckerMixin {
-  constructor(
-    host?: string,
-    port?: string,
-    timeout?: string,
-    publicIPAddress?: string,
-    username?: string,
-    password?: string
-  ) {
-    super(host, port, timeout, publicIPAddress, username, password);
+  constructor(pcheckerOptions?: PCheckerOptions) {
+    super(pcheckerOptions);
   }
 
   /**
@@ -127,12 +114,12 @@ export class PChecker extends PCheckerMixin {
 
     return geolocation;
   }
-  
+
   /**
    * @method: checkWebRTCLeak()
-   * 
-   * 
-  */
+   * @returns Promise<boolean | ProxyError>
+   * checks if public ip address is leaked via WebRTC
+   */
   public async checkWebRTCLeak(): Promise<any> {
     this.nullChecks();
     const leakCheck = await this.checkProxyWebRTCLeak();
@@ -140,8 +127,6 @@ export class PChecker extends PCheckerMixin {
 
     return leakCheck;
   }
-
-
 
   /**
    * @method: checkEssential()
@@ -154,5 +139,26 @@ export class PChecker extends PCheckerMixin {
     this.clearTimeouts();
 
     return essential;
+  }
+
+  /**
+   * @method: checkAll()
+   * @returns everythring
+   * one big boi response
+   */
+  public async checkAll(): Promise<any> {
+    this.nullChecks();
+    const all = await Promise.all([
+      this.checkProxyAnonymity(),
+      this.checkProxyHTTPSSupport(),
+      this.checkProxyContent(),
+      this.checkProxyGoogleSupport(),
+      this.checkProxyDNSLeak(),
+      this.checkProxyLocation(),
+      this.checkProxyWebRTCLeak(),
+    ]);
+    this.clearTimeouts();
+
+    return all;
   }
 }

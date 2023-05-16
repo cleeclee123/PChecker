@@ -1,14 +1,7 @@
-import * as P from "./checker/PChecker.js";
-import * as PFast from "./checker/PCheckerFaster.js";
-import net from "net";
-import tls from "tls";
-import http from "http";
-import https from "http";
-import * as dotenv from "dotenv";
-import fetch from "node-fetch";
+import * as PChecker from "./checker/PChecker.js";
+import * as PCheckerEssential from "./checker/PCheckerEssential.js";
+import { MyConcurrentPromiseQueue } from "mypqueue";
 import os from "os";
-import HttpsProxyAgent from "https-proxy-agent";
-import { Readable } from "stream";
 
 os.freemem();
 
@@ -42,52 +35,31 @@ os.freemem();
 // console.timeEnd();
 // process.kill(process.pid);
 
-
-
 console.time();
 
-let p = new PFast.PCheckerFast("8.219.176.202", "8080", "10000", "130.126.255.240");
-let check = await p.check();
+// let p = new PChecker.PChecker("24.156.198.241", "8080", "10000");
+// let p = new PChecker.PChecker("20.241.236.196", "3128", "10000");
+
+// let p1 = new PChecker.PChecker("34.98.65.22", "8443", "5000");
+// let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
+
+let p1 = new PChecker.PChecker();
+p1.setHost("158.160.56.149");
+p1.setPort("8080");
+p1.setTimeout("5000");
+p1.setPublicIP("73.110.181.186")
+
+// 158.160.56.149:8080
+
+let check1 = await p1.checkContent();
+
+console.log(check1);
 
 // mb used
 let used = process.memoryUsage().heapUsed / 1024 / 1024;
-console.log(used)
-
-console.log(check);
+console.log(used);
 
 console.timeEnd();
 
 process.kill(process.pid);
 
-
-
-// let host = "201.221.26.179";
-// let port = 8080;
-
-// let socket = net.connect({ host: host, port: port });
-// let payload = `CONNECT ${host}:${port} HTTP/1.1\r\n`;
-
-// let buffer = [] as any[];
-
-// socket.on("connect", () => {
-//   socket.write(`${payload}\r\n`);
-// });
-
-// socket.on("data", (chuck) => {
-//   buffer.push(chuck);
-//   console.log(chuck.toString())
-// });
-
-// socket.on("end", () => {
-//   console.log("end")
-// });
-
-// socket.on("close", () => {
-//   console.log("close")
-// });
-
-// socket.on("error", (error) => {
-//   console.log(error);
-// });
-
-// console.log(buffer)

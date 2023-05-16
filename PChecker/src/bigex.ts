@@ -1,4 +1,5 @@
 import * as PChecker from "./checker/PChecker.js";
+import { PCheckerOptions } from "./checker/types.js";
 import { MyConcurrentPromiseQueue } from "mypqueue";
 import os from "os";
 
@@ -482,7 +483,12 @@ async function test() {
 
   const promises = [];
   for (let i = 0; i < list.length; i++) {
-    let p = new PChecker.PChecker(list[i][0], list[i][1], "5000");
+    let pOptions = {
+      host: list[i][0],
+      port: list[i][1],
+      timeout: "5000",
+    } as PCheckerOptions;
+    let p = new PChecker.PChecker(pOptions);
     p.setPublicIP("73.110.181.186");
     promises.push(queue.addPromise(() => p.checkEssential()));
   }

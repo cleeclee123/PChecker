@@ -14,7 +14,8 @@
     "webrtctest": "npx tsc && node build/judge/webrtcleak/webrtcLeak.js",
     "pq": "npx tsc && node build/server/queue.js",
     "pqnew": "npx tsc && node build/server/pqueue.js",
-    "utests": "node --loader tsx --test src/tests/tests.ts"
+    "utests": "node --loader tsx --test src/tests/tests.ts",
+    "bigex": "npx tsc && node build/bigex.js"
   },
   "repository": {
     "type": "git",

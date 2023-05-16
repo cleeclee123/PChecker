@@ -1,7 +1,7 @@
 "use-strict";
 
 import http from "http";
-import { ProxyOptions, ProxyError } from "./types.js";
+import { ProxyOptions, ProxyError, PCheckerOptions } from "./types.js";
 import { ENUM_ERRORS } from "./emuns.js";
 import { createLogger, transports, format, Logger } from "winston";
 
@@ -28,31 +28,32 @@ export class PCheckerBase {
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36",
   ];
 
-  constructor(
-    host?: string,
-    port?: string,
-    timeout?: string,
-    publicIPAddress?: string,
-    username?: string,
-    password?: string
-  ) {
-    this.host_ = host;
-    this.port_ = port;
-    this.timeout_ = Number(timeout);
-    this.publicIPAddress_ = publicIPAddress;
-    this.username_ = username;
-    this.password_ = password;
+  constructor(pcheckerOptions?: PCheckerOptions) {
+    // always constructed
     this.optionspj_ = {} as ProxyOptions;
     this.agent_ = {} as http.Agent;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
-    (username !== undefined && password !== undefined) ||
-    (username !== "" && password !== "")
-      ? (this.auth_ =
-          "Basic " + Buffer.from(username + ":" + password).toString("base64"))
-      : (this.auth_ = undefined);
-    if (this.auth_ !== undefined) {
-      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+    if (pcheckerOptions !== undefined) {
+      this.host_ = pcheckerOptions.host;
+      this.port_ = pcheckerOptions.port;
+      this.timeout_ = Number(pcheckerOptions.timeout);
+      this.publicIPAddress_ = pcheckerOptions.publicIPAddress;
+      this.username_ = pcheckerOptions.username;
+      this.password_ = pcheckerOptions.password;
+
+      (pcheckerOptions.username !== undefined &&
+        pcheckerOptions.password !== undefined) ||
+      (pcheckerOptions.username !== "" && pcheckerOptions.password !== "")
+        ? (this.auth_ =
+            "Basic " +
+            Buffer.from(
+              pcheckerOptions.username + ":" + pcheckerOptions.username
+            ).toString("base64"))
+        : (this.auth_ = undefined);
+      if (this.auth_ !== undefined) {
+        this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+      }
     }
 
     this.optionspj_ = {
