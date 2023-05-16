@@ -6,18 +6,34 @@ import socket
 # get the list of free proxies
 
 
-def getProxiesList():
-    # r = requests.get('https://free-proxy-list.net/')
-    r = requests.get('https://www.sslproxies.org/')
+def getProxiesList1(proxies):
+    r = requests.get('https://free-proxy-list.net/')
+    # r = requests.get('https://www.sslproxies.org/')
     soup = BeautifulSoup(r.content, 'html.parser')
     table = soup.find('tbody')
-    proxies = []
+    # proxies = []
     for row in table:
         if row.find_all('td')[4].text == 'elite proxy':
         # if row.find_all('td')[4].text == 'anonymous':
             proxy = ':'.join([row.find_all('td')[0].text,
                              row.find_all('td')[1].text])
-            proxies.append(proxy)
+            proxies.append([row.find_all('td')[0].text, row.find_all('td')[1].text])
+        else:
+            pass
+    return proxies
+
+def getProxiesList2(proxies):
+    # r = requests.get('https://free-proxy-list.net/')
+    r = requests.get('https://www.sslproxies.org/')
+    soup = BeautifulSoup(r.content, 'html.parser')
+    table = soup.find('tbody')
+    # proxies = []
+    for row in table:
+        if row.find_all('td')[4].text == 'elite proxy':
+        # if row.find_all('td')[4].text == 'anonymous':
+            proxy = ':'.join([row.find_all('td')[0].text,
+                             row.find_all('td')[1].text])
+            proxies.append([row.find_all('td')[0].text, row.find_all('td')[1].text])
         else:
             pass
     return proxies
@@ -99,8 +115,16 @@ def check(proxy):
         #print("connection error")
         None
             
-proxylist = getProxiesList()
+proxylist = []
+getProxiesList1(proxylist)
+getProxiesList2(proxylist)
+
+print(proxylist)
+
 # proxylist = getProxiesGithub()
-with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
-    executor.map(check, proxylist)
+
+print(proxylist)
+
+# with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+#     executor.map(check, proxylist)
 

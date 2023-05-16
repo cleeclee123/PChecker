@@ -23,8 +23,8 @@ from bs4 import BeautifulSoup
 
 
 def getProxiesList():
-    # r = requests.get('https://free-proxy-list.net/')
-    r = requests.get('https://www.sslproxies.org/')
+    r = requests.get('https://free-proxy-list.net/')
+    # r = requests.get('https://www.sslproxies.org/')
     soup = BeautifulSoup(r.content, 'html.parser')
     table = soup.find('tbody')
     proxies = []
@@ -38,24 +38,25 @@ def getProxiesList():
             pass
     return proxies
 
-# def getProxiesGithub():
-#     # r = requests.get('https://github.com/TheSpeedX/PROXY-List/blob/master/socks5.txt')
-#     # r = requests.get('https://github.com/jetkai/proxy-list/blob/main/online-proxies/txt/proxies-socks5.txt')
-#     r = requests.get(
-#         'https://github.com/TheSpeedX/PROXY-List/blob/master/http.txt')
-#     soup = BeautifulSoup(r.content, 'html.parser')
-#     table = soup.find('table')
-#     proxies = []
-#     if (table.find_all('tr')):
-#         for row in table.find_all('tr'):
-#             proxies.append(row.select('tr > td')[1].text)
-#     return proxies
+
+def getProxiesGithub():
+    # r = requests.get('https://github.com/TheSpeedX/PROXY-List/blob/master/socks5.txt')
+    # r = requests.get('https://github.com/jetkai/proxy-list/blob/main/online-proxies/txt/proxies-socks5.txt')
+    r = requests.get(
+        'https://github.com/TheSpeedX/PROXY-List/blob/master/http.txt')
+    soup = BeautifulSoup(r.content, 'html.parser')
+    table = soup.find('table')
+    proxies = []
+    if (table.find_all('tr')):
+        for row in table.find_all('tr'):
+            proxies.append(row.select('tr > td')[1].text)
+    return proxies
 
 
 def run_script(ip, port, timeout):
     result = subprocess.run(["node", "../../build/cla/index1.js",
-                             ip, port, timeout], capture_output=True, text=True)
-    print(ip, result.stdout)
+                             ip, port, timeout, "130.126.255.240"], capture_output=True, text=True)
+    print(ip, port, result.stdout)
     return result.stdout
 
 
@@ -71,8 +72,7 @@ def main():
             result = future.result()
             results_dict[ip] = result
 
-    print(results_dict)
-
+    return results_dict
 
 if __name__ == '__main__':
     main()
