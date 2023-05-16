@@ -1,11 +1,11 @@
 import express, { Request, Response } from "express";
 import { PCheckerOptions } from "../checker/types.js";
 import * as P from "../checker/PChecker.js";
-import * as pq from "mypqueue";
+import { MyConcurrentPromiseQueue } from "../pqueue/pqueue.js";
 
 const app = express();
 const localport = 6969;
-const queue = new pq.MyConcurrentPromiseQueue({
+const queue = new MyConcurrentPromiseQueue({
   maxNumberOfConcurrentPromises: 10,
 });
 
