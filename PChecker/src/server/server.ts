@@ -4,7 +4,7 @@ import * as pq from "mypqueue";
 
 const app = express();
 const localport = 6969;
-const queue = new pq.MyConcurrentPromiseQueue();
+const queue = new pq.MyConcurrentPromiseQueue({ maxNumberOfConcurrentPromises: 10 });
 
 function validateIPAddress(req: Request, res: Response, next: Function) {
   const proxyHost = req.query.host;
@@ -206,6 +206,24 @@ app.get(
     const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
     queue
       .addPromise(() => p.checkWebRTCLeak())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
+
+app.get(
+  "/everything",
+  validateIPAddress,
+  validatePortNumber,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
+
+    const p = new P.PChecker(proxyHost, proxyPort, proxyTimeout);
+    queue
+      .addPromise(() => p.checkAll())
       .then((result) => {
         res.json(result);
       });
