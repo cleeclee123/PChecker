@@ -37,8 +37,8 @@ export class PCheckerMethods extends PCheckerBase {
   // test endpoint
   private static readonly kTestDomain: string = `http://myproxyjudgeclee.software/index.html`;
 
-  // injection testing
   /** @todo: move to testing infra */
+  // injection testing
   private static readonly injectedTest1: string = `http://myproxyjudgeclee.software/testendpointindex.html`;
   private static readonly injectedTest2: string = `http://myproxyjudgeclee.software/testendpointindex2.html`;
 
@@ -103,93 +103,120 @@ export class PCheckerMethods extends PCheckerBase {
         const errorObject = {} as ProxyError;
         const startTime = new Date().getTime();
 
-        http.get(this.optionspj_, (res) => {
-          if (res.statusCode !== 200) {
-            this.logger_.error(
-              `checkProxyAnonymity status code: ${res.statusCode}`
-            );
-            errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-            res.destroy();
-          }
-
-          let body = [] as any[];
-          res.on("data", (chunk) => {
-            body.push(chunk);
-          });
-
-          res.on("end", () => {
-            try {
-              httpRequest.header = JSON.parse(Buffer.concat(body).toString());
-
-              // count time that public ip address appers in header
-              let pipCount = 0;
-              const toFlag: any[] = [];
-              let proxyInfoAnonymity;
-
-              if (
-                this.publicIPAddress_ !== undefined &&
-                this.publicIPAddress_ !== ({} as any)
-              ) {
-                for (const key of Object.keys(httpRequest.header)) {
-                  if (key in ENUM_FlaggedHeaderValues) {
-                    if (
-                      String(httpRequest.header[key as keyof JSON]) ===
-                      this.publicIPAddress_
-                    ) {
-                      pipCount++;
-                    }
-                    toFlag.push(key);
-                  }
-                }
-
-                proxyInfoAnonymity =
-                  pipCount === 0
-                    ? ENUM_ProxyAnonymity.Anonymous
-                    : ENUM_ProxyAnonymity.Transparent;
-              } else if (
-                Object.keys(this.publicIPAddress_).length === 0 &&
-                this.publicIPAddress_.constructor === Object
-              ) {
-                proxyInfoAnonymity = undefined;
-              } else {
-                proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
-              }
-
-              httpRequest.anonymity =
-                toFlag.length === 0
-                  ? ENUM_ProxyAnonymity.Elite
-                  : proxyInfoAnonymity;
-
-              httpRequest.cause = toFlag;
-              if (httpRequest.cause.length === 0) {
-                httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
-              }
-            } catch (error) {
-              errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+        const httpGetRequestObject = () => {
+          const httpProxyRequestObject = http.get(this.optionspj_, (res) => {
+            if (res.statusCode !== 200) {
               this.logger_.error(
-                `checkProxyAnonymity JSON parse error: ${error}`
+                `checkProxyAnonymity status code: ${res.statusCode}`
               );
+              errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              res.destroy();
             }
 
-            res.destroy();
+            let body = [] as any[];
+            res.on("data", (chunk) => {
+              body.push(chunk);
+            });
+
+            res.on("end", () => {
+              try {
+                httpRequest.header = JSON.parse(Buffer.concat(body).toString());
+
+                // count time that public ip address appers in header
+                let pipCount = 0;
+                const toFlag: any[] = [];
+                let proxyInfoAnonymity;
+
+                if (
+                  this.publicIPAddress_ !== undefined &&
+                  this.publicIPAddress_ !== ({} as any)
+                ) {
+                  for (const key of Object.keys(httpRequest.header)) {
+                    if (key in ENUM_FlaggedHeaderValues) {
+                      if (
+                        String(httpRequest.header[key as keyof JSON]) ===
+                        this.publicIPAddress_
+                      ) {
+                        pipCount++;
+                      }
+                      toFlag.push(key);
+                    }
+                  }
+
+                  proxyInfoAnonymity =
+                    pipCount === 0
+                      ? ENUM_ProxyAnonymity.Anonymous
+                      : ENUM_ProxyAnonymity.Transparent;
+                } else if (
+                  Object.keys(this.publicIPAddress_).length === 0 &&
+                  this.publicIPAddress_.constructor === Object
+                ) {
+                  proxyInfoAnonymity = undefined;
+                } else {
+                  proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
+                }
+
+                httpRequest.anonymity =
+                  toFlag.length === 0
+                    ? ENUM_ProxyAnonymity.Elite
+                    : proxyInfoAnonymity;
+
+                httpRequest.cause = toFlag;
+                if (httpRequest.cause.length === 0) {
+                  httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
+                }
+              } catch (error) {
+                errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                this.logger_.error(
+                  `checkProxyAnonymity JSON parse error: ${error}`
+                );
+              }
+
+              res.destroy();
+            });
+
+            res.on("error", (error) => {
+              errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+              this.logger_.error(
+                `checkProxyAnonymity connection error: ${error}`
+              );
+              res.destroy();
+            });
+
+            res.on("close", () => {
+              httpRequest.responseTime = new Date().getTime() - startTime;
+
+              // sending res.destroy signal if error happens
+              if (errorObject.hasOwnProperty("error")) resolve(errorObject);
+              else resolve(httpRequest);
+            });
           });
 
-          res.on("error", (error) => {
+          httpProxyRequestObject.on("error", (error) => {
             errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
             this.logger_.error(
               `checkProxyAnonymity connection error: ${error}`
             );
-            res.destroy();
+            httpProxyRequestObject.destroy();
           });
 
-          res.on("close", () => {
+          httpProxyRequestObject.on("end", () => {
+            httpRequest.anonymity = undefined;
+          });
+
+          httpProxyRequestObject.on("close", () => {
             httpRequest.responseTime = new Date().getTime() - startTime;
 
-            // sending res.destroy signal if error happens
             if (errorObject.hasOwnProperty("error")) resolve(errorObject);
             else resolve(httpRequest);
           });
-        });
+
+          httpProxyRequestObject.end();
+
+          return httpProxyRequestObject;
+        };
+
+        httpGetRequestObject();
       }
     );
 
@@ -368,67 +395,103 @@ export class PCheckerMethods extends PCheckerBase {
       (resolve, reject) => {
         let errorObject = {} as ProxyError;
         let statuscode: number = 0;
+        let response: string[] = [];
+        const startTime = new Date().getTime();
 
-        http.get(this.optionsTestDomain_, (res) => {
-          statuscode = res.statusCode;
-          if (
-            String(res.statusCode)[0] !== "2" &&
-            String(res.statusCode)[0] !== "3"
-          ) {
-            this.logger_.error(
-              `checkProxyContent status code: ${res.statusCode}`
-            );
-            errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-            res.destroy();
-          }
-
-          res.setEncoding("utf8");
-          const body = [] as string[];
-          res.on("data", (chunk: string) => {
-            body.push(chunk);
-            this.logger_.info(`checkProxyContent chunk: ${chunk}`);
-          });
-
-          let response: string[] = [];
-          res.on("end", () => {
-            if (body.length === 0) {
-              if (statuscode === 302) {
-                this.logger_.info(
-                  `proxy may have erased all website content on redirect : status code ${statuscode}`
-                );
-              } else {
-                errorObject.error = ENUM_ERRORS.PROXY_JUDGE_EMPTY_RESPONSE;
+        const httpGetRequestObject = () => {
+          const httpProxyRequestObject = http.get(
+            this.optionsTestDomain_,
+            (res) => {
+              statuscode = res.statusCode;
+              if (
+                String(res.statusCode)[0] !== "2" &&
+                String(res.statusCode)[0] !== "3"
+              ) {
                 this.logger_.error(
-                  "checkProxyContent empty response from proxy judge"
+                  `checkProxyContent status code: ${res.statusCode}`
                 );
+                errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+                res.destroy();
               }
-              res.destroy();
-            } else {
-              body[0]
-                .split("\n")
-                .forEach((line: string) => response.push(line.trim()));
-              response = response.filter((v) => v.length !== 0);
-            }
-          });
 
-          res.on("error", (error) => {
-            this.logger_.error(`httpResponse ON-Error: ${error}`);
+              res.setEncoding("utf8");
+              const body = [] as string[];
+              res.on("data", (chunk: string) => {
+                body.push(chunk);
+                this.logger_.info(`checkProxyContent chunk: ${chunk}`);
+              });
+
+              res.on("end", () => {
+                if (body.length === 0) {
+                  if (statuscode === 302) {
+                    this.logger_.info(
+                      `proxy may have erased all website content on redirect : status code ${statuscode}`
+                    );
+                  } else {
+                    errorObject.error = ENUM_ERRORS.PROXY_JUDGE_EMPTY_RESPONSE;
+                    this.logger_.error(
+                      "checkProxyContent empty response from proxy judge"
+                    );
+                  }
+                  res.destroy();
+                } else {
+                  body[0]
+                    .split("\n")
+                    .forEach((line: string) => response.push(line.trim()));
+                  response = response.filter((v) => v.length !== 0);
+                }
+              });
+
+              res.on("error", (error) => {
+                this.logger_.error(`httpResponse ON-Error: ${error}`);
+                errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+                res.destroy();
+              });
+
+              res.on("close", () => {
+                const endtime = new Date().getTime() - startTime;
+                this.logger_.info(
+                  `checkProxyContent response time: ${endtime - startTime}`
+                );
+                if (errorObject.hasOwnProperty("error")) {
+                  // the proxy judge is expected to work
+                  if (errorObject.error === ENUM_ERRORS.STATUS_CODE_ERROR) {
+                    this.logger_.error("the proxy judge is failing"); // maybe because its written in php
+                    reject(errorObject);
+                  }
+                  resolve(errorObject);
+                }
+                resolve(response);
+              });
+            }
+          );
+
+          httpProxyRequestObject.on("error", (error) => {
             errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
-            res.destroy();
+            this.logger_.error(`checkProxyContent connection error: ${error}`);
+            httpProxyRequestObject.destroy();
           });
 
-          res.on("close", () => {
-            if (errorObject.hasOwnProperty("error")) {
-              // the proxy judge is expected to work
-              if (errorObject.error === ENUM_ERRORS.STATUS_CODE_ERROR) {
-                this.logger_.error("the proxy judge is failing"); // maybe because its written in php
-                reject(errorObject);
-              }
-              resolve(errorObject);
-            }
-            resolve(response);
+          httpProxyRequestObject.on("end", () => {
+            statuscode = undefined;
           });
-        });
+
+          httpProxyRequestObject.on("close", () => {
+            const endtime = new Date().getTime() - startTime;
+            this.logger_.info(
+              `checkProxyContent response time: ${endtime - startTime}`
+            );
+
+            if (errorObject.hasOwnProperty("error")) resolve(errorObject);
+            else resolve(response);
+          });
+
+          httpProxyRequestObject.end();
+
+          return httpProxyRequestObject;
+        };
+
+        httpGetRequestObject();
       }
     );
 
@@ -526,21 +589,48 @@ export class PCheckerMethods extends PCheckerBase {
     const googlePromise: Promise<boolean | ProxyError> = new Promise(
       (resolve) => {
         const googleCheckError = {} as ProxyError;
-        http.get(googleOptions, (res) => {
-          if (res.statusCode !== 200) {
-            googleCheckError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-            this.logger_.error(`google check status code: ${res.statusCode}`);
-          }
-          res.destroy();
-
-          res.on("close", () => {
-            if (googleCheckError.hasOwnProperty("error")) {
-              resolve(false);
-            } else {
-              resolve(true);
+        const startTime = new Date().getTime();
+        const httpGetRequestObject = () => {
+          const httpProxyRequestObject = http.get(googleOptions, (res) => {
+            if (res.statusCode !== 200) {
+              googleCheckError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              this.logger_.error(`google check status code: ${res.statusCode}`);
             }
+            res.destroy();
+
+            res.on("close", () => {
+              if (googleCheckError.hasOwnProperty("error")) {
+                resolve(false);
+              } else {
+                resolve(true);
+              }
+            });
           });
-        });
+
+          httpProxyRequestObject.on("error", (error) => {
+            googleCheckError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            this.logger_.error(`googlecheck connection error: ${error}`);
+            httpProxyRequestObject.destroy();
+          });
+
+          httpProxyRequestObject.on("end", () => {});
+
+          httpProxyRequestObject.on("close", () => {
+            const endtime = new Date().getTime() - startTime;
+            this.logger_.info(
+              `googlecheck response time: ${endtime - startTime}`
+            );
+
+            if (googleCheckError.hasOwnProperty("error")) resolve(false);
+            else resolve(true);
+          });
+
+          httpProxyRequestObject.end();
+
+          return httpProxyRequestObject;
+        };
+
+        httpGetRequestObject();
       }
     );
 
@@ -592,46 +682,74 @@ export class PCheckerMethods extends PCheckerBase {
           },
         };
 
-        http.get(requestOptions, (res) => {
-          if (res.statusCode !== 200) {
-            proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-            this.logger_.error(
-              `getProxyLocation bad status code: ${res.statusCode}`
-            );
-            res.destroy();
-          }
-
-          res.setEncoding("utf8");
-          let responseData = [] as string[];
-          res.on("data", (data) => {
-            responseData.push(data);
-          });
-
-          res.on("end", () => {
-            try {
-              const json: any = JSON.parse(responseData.join(""));
-              proxyInfo.data = json;
-            } catch (error) {
-              proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
-              this.logger_.error(`getProxyLocation JSON Parse Error`);
+        const httpGetRequestObject = () => {
+          const httpProxyRequestObject = http.get(requestOptions, (res) => {
+            if (res.statusCode !== 200) {
+              proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              this.logger_.error(
+                `getProxyLocation bad status code: ${res.statusCode}`
+              );
+              res.destroy();
             }
-            res.destroy();
+
+            res.setEncoding("utf8");
+            let responseData = [] as string[];
+            res.on("data", (data) => {
+              responseData.push(data);
+            });
+
+            res.on("end", () => {
+              try {
+                const json: any = JSON.parse(responseData.join(""));
+                proxyInfo.data = json;
+              } catch (error) {
+                proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                this.logger_.error(`getProxyLocation JSON Parse Error`);
+              }
+              res.destroy();
+            });
+
+            res.on("error", (error) => {
+              proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+              this.logger_.error(`getProxyLocation connect error: ${error}`);
+              res.destroy();
+            });
+
+            res.on("close", () => {
+              const endtime = new Date().getTime() - startTime;
+              this.logger_.info(
+                `getProxyLocation response time: ${endtime} ms`
+              );
+
+              if (proxyError.hasOwnProperty("error")) resolve(proxyError);
+              resolve(proxyInfo);
+            });
           });
 
-          res.on("error", (error) => {
+          httpProxyRequestObject.on("error", (error) => {
             proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
-            this.logger_.error(`getProxyLocation connect error: ${error}`);
-            res.destroy();
+            this.logger_.error(`geolocation connection error: ${error}`);
+            httpProxyRequestObject.destroy();
           });
 
-          res.on("close", () => {
+          httpProxyRequestObject.on("end", () => {});
+
+          httpProxyRequestObject.on("close", () => {
             const endtime = new Date().getTime() - startTime;
-            this.logger_.info(`getProxyLocation response time: ${endtime} ms`);
+            this.logger_.info(
+              `geolocation response time: ${endtime - startTime}`
+            );
 
             if (proxyError.hasOwnProperty("error")) resolve(proxyError);
-            resolve(proxyInfo);
+            else resolve(proxyInfo);
           });
-        });
+
+          httpProxyRequestObject.end();
+
+          return httpProxyRequestObject;
+        };
+
+        httpGetRequestObject();
       }
     );
 
@@ -686,76 +804,109 @@ export class PCheckerMethods extends PCheckerBase {
           path: `https://bash.ws/dnsleak/test/${leakId}?json`,
         };
 
-        http.get(options, (res) => {
-          if (res.statusCode !== 200) {
-            proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
-            this.logger_.error(`dnsLeak bad status code: ${res.statusCode}`);
-            res.destroy();
-          }
-
-          res.setEncoding("utf8");
-          let data: string = "";
-          res.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          res.on("end", () => {
-            try {
-              const parsedData = JSON.parse(data);
-
-              const currentServer = parsedData.filter(
-                (server: DNSResponseServer) => server.type === "ip"
-              );
-              dnsLeakCheck.currentServer = currentServer;
-
-              const dnsServers = parsedData.filter(
-                (server: DNSResponseServer) => server.type === "dns"
-              );
-              dnsLeakCheck.dnsServers = dnsServers;
-
-              const dnsServersCount = dnsServers.length;
-              dnsLeakCheck.dnsServerCount = dnsServersCount;
-
-              if (dnsServersCount === 0) {
-                proxyError.error = ENUM_ERRORS.NO_DNS_SERVERS;
-                this.logger_.error(`no dns servers found`);
-                res.destroy();
-              }
-
-              parsedData
-                .filter(
-                  (server: DNSResponseServer) => server.type === "conclusion"
-                )
-                .forEach((server: DNSResponseServer) => {
-                  if (server.ip === "DNS may be leaking.") {
-                    dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.PossibleDNSLeak;
-                  } else if (server.ip === "DNS is bot leaking.") {
-                    dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
-                  }
-                });
-
-              resolve(dnsLeakCheck);
-            } catch (error) {
-              proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
-              this.logger_.error(`dnsLeak JSON Parse Error`);
+        const httpGetRequestObject = () => {
+          const httpProxyRequestObject = http.get(options, (res) => {
+            if (res.statusCode !== 200) {
+              proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              this.logger_.error(`dnsLeak bad status code: ${res.statusCode}`);
               res.destroy();
             }
+
+            res.setEncoding("utf8");
+            let data: string = "";
+            res.on("data", (chunk) => {
+              data += chunk;
+            });
+
+            res.on("end", () => {
+              try {
+                const parsedData = JSON.parse(data);
+
+                const currentServer = parsedData.filter(
+                  (server: DNSResponseServer) => server.type === "ip"
+                );
+                dnsLeakCheck.currentServer = currentServer;
+
+                const dnsServers = parsedData.filter(
+                  (server: DNSResponseServer) => server.type === "dns"
+                );
+                dnsLeakCheck.dnsServers = dnsServers;
+
+                const dnsServersCount = dnsServers.length;
+                dnsLeakCheck.dnsServerCount = dnsServersCount;
+
+                if (dnsServersCount === 0) {
+                  proxyError.error = ENUM_ERRORS.NO_DNS_SERVERS;
+                  this.logger_.error(`no dns servers found`);
+                  res.destroy();
+                }
+
+                parsedData
+                  .filter(
+                    (server: DNSResponseServer) => server.type === "conclusion"
+                  )
+                  .forEach((server: DNSResponseServer) => {
+                    if (server.ip === "DNS may be leaking.") {
+                      dnsLeakCheck.conclusion =
+                        ENUM_DNSLeakCheck.PossibleDNSLeak;
+                    } else if (server.ip === "DNS is bot leaking.") {
+                      dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
+                    }
+                  });
+
+                resolve(dnsLeakCheck);
+              } catch (error) {
+                proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                this.logger_.error(`dnsLeak JSON Parse Error`);
+                res.destroy();
+              }
+            });
+
+            res.on("error", (error) => {
+              proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+              this.logger_.error(`dnsLeak connect error: ${error}`);
+              res.destroy();
+            });
+
+            res.on("close", () => {
+              const endtime = new Date().getTime() - startTime;
+              this.logger_.info(`dnsLeakCheck run time: ${endtime} ms`);
+
+              if (proxyError.hasOwnProperty("error")) resolve(proxyError);
+              resolve(dnsLeakCheck);
+            });
           });
 
-          res.on("error", (error) => {
+          httpProxyRequestObject.on("error", (error) => {
             proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
-            this.logger_.error(`dnsLeak connect error: ${error}`);
-            res.destroy();
+            this.logger_.error(`dns check connection error: ${error}`);
+            httpProxyRequestObject.destroy();
           });
 
-          res.on("close", () => {
+          httpProxyRequestObject.on("end", () => {
+            dnsLeakCheck.bashWSDomains = undefined;
+            dnsLeakCheck.conclusion = undefined;
+            dnsLeakCheck.currentServer = undefined;
+            dnsLeakCheck.dnsServerCount = undefined;
+            dnsLeakCheck.dnsServers = undefined;
+          });
+
+          httpProxyRequestObject.on("close", () => {
             const endtime = new Date().getTime() - startTime;
-            this.logger_.info(`dnsLeakCheck run time: ${endtime} ms`);
+            this.logger_.info(
+              `dns check response time: ${endtime - startTime}`
+            );
 
             if (proxyError.hasOwnProperty("error")) resolve(proxyError);
-            resolve(dnsLeakCheck);
+            else resolve(dnsLeakCheck);
           });
-        });
+
+          httpProxyRequestObject.end();
+
+          return httpProxyRequestObject;
+        };
+
+        httpGetRequestObject();
       }
     );
 

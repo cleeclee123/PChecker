@@ -14,7 +14,6 @@ import {
 /**
  * @todo:
  *  - break all fat functions up
- *  - flag for proxyLocation function (true runs proxyLocation, false does not)
  *  - add constructor options for class (PCheckerBase, PCheckerEssential, PCheckerMethods)
  *  - write and deploy server
  *  - write tests/build out testing infrastructure
