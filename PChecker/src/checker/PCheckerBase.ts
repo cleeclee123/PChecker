@@ -172,6 +172,15 @@ export class PCheckerBase {
     return timeoutPromise;
   }
 
+  protected createTimeoutNew<T>(data: any) {
+    const timeoutPromise: Promise<T> = new Promise((resolve) =>
+      setTimeout(() => resolve(data as T), this.timeout_)
+    );
+    this.timeoutsArray_.push(timeoutPromise);
+
+    return timeoutPromise;
+  }
+
   // timeout memory management
   protected clearTimeouts(): void {
     this.timeoutsArray_.forEach(async (to) => {

@@ -429,7 +429,10 @@ export class PCheckerEssential extends PCheckerBase {
    * Check essential proxy info
    */
   public async checkProxyEssential(): Promise<ProxyInfoEssential | ProxyError> {
-    const timeoutPromise: Promise<ProxyError> = this.createTimeout("timedout");
+    const timeoutPromise: Promise<ProxyError> = this.createTimeoutNew({
+      error: ENUM_ERRORS.GLOBAL_TIMEOUT,
+      proxyString: `${this.host_}:${this.port_}`,
+    } as ProxyError);
 
     // race between timeout and promises
     try {
@@ -443,9 +446,7 @@ export class PCheckerEssential extends PCheckerBase {
       if (this.runProxyLocation_ === false) promises.pop();
 
       const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
-      if (race.hasOwnProperty("timeoutdata")) {
-        return race as ProxyError;
-      }
+      if (race.hasOwnProperty("error")) return race as ProxyError;
 
       const results = race as ProxyInfoEssential[];
       const validResults = results.filter(
@@ -474,11 +475,13 @@ export class PCheckerEssential extends PCheckerBase {
       );
       essentialInfo.proxyString = `${this.host_}:${this.port_}`;
       if (allErrors.length !== 0) essentialInfo.errors = allErrors;
-
       return essentialInfo;
     } catch (error) {
       this.logger_.error(`checkProxyEssential error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return {
+        error: ENUM_ERRORS.PROMISE_RACE_ERROR,
+        proxyString: `${this.host_}:${this.port_}`,
+      } as ProxyError;
     }
   }
 }

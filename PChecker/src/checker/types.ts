@@ -54,6 +54,7 @@ export type ProxyOptions = {
 
 export type ProxyError = {
   error: ENUM_ERRORS;
+  proxyString: string;
 };
 
 export type ProxyInfoFromHttp = {
