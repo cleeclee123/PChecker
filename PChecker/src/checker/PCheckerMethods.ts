@@ -29,6 +29,7 @@ import { PCheckerBase } from "./PCheckerBase.js";
  * @todo
  *  - add more error handling
  *  - checkContent() 302 fix
+ *  - SO MANY BUGS WITH EVERYTHING DONT USE
  */
 export class PCheckerMethods extends PCheckerBase {
   private socket_: net.Socket;
@@ -451,7 +452,7 @@ export class PCheckerMethods extends PCheckerBase {
               res.on("close", () => {
                 const endtime = new Date().getTime() - startTime;
                 this.logger_.info(
-                  `checkProxyContent response time: ${endtime - startTime}`
+                  `checkProxyContent response time: ${endtime}`
                 );
                 if (errorObject.hasOwnProperty("error")) {
                   // the proxy judge is expected to work
@@ -479,7 +480,7 @@ export class PCheckerMethods extends PCheckerBase {
           httpProxyRequestObject.on("close", () => {
             const endtime = new Date().getTime() - startTime;
             this.logger_.info(
-              `checkProxyContent response time: ${endtime - startTime}`
+              `checkProxyContent response time: ${endtime}`
             );
 
             if (errorObject.hasOwnProperty("error")) resolve(errorObject);
@@ -618,7 +619,7 @@ export class PCheckerMethods extends PCheckerBase {
           httpProxyRequestObject.on("close", () => {
             const endtime = new Date().getTime() - startTime;
             this.logger_.info(
-              `googlecheck response time: ${endtime - startTime}`
+              `googlecheck response time: ${endtime}`
             );
 
             if (googleCheckError.hasOwnProperty("error")) resolve(false);
