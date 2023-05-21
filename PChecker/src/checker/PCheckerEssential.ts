@@ -14,7 +14,6 @@ import {
 /**
  * @todo:
  *  - break all fat functions up
- *  - error callback function, specfically for socket hang up errors (https://stackoverflow.com/questions/10814481/how-to-debug-a-socket-hang-up-error-in-nodejs#:~:text=function%20callback(error%2C%20data)%20%7B%0A%20%20%20%20if%20(error)%20%7B%0A%20%20%20%20%20%20%20%20console.error(%27Something%20went%20wrong!%27)%3B%0A%20%20%20%20%20%20%20%20console.error(error)%3B%0A%20%20%20%20%7D%0A%20%20%20%20else%20%7B%0A%20%20%20%20%20%20%20%20console.log(%27All%20went%20fine.%27)%3B%0A%20%20%20%20%20%20%20%20console.log(data)%3B%0A%20%20%20%20%7D%0A%7D)
  *  - flag for proxyLocation function (true runs proxyLocation, false does not)
  *  - add constructor options for class (PCheckerBase, PCheckerEssential, PCheckerMethods)
  *  - write and deploy server
@@ -435,11 +434,14 @@ export class PCheckerEssential extends PCheckerBase {
 
     // race between timeout and promises
     try {
-      const promises: Promise<ProxyInfoEssential>[] = [
+      let promises: Promise<ProxyInfoEssential>[] = [
         this.checkProxyAnonymityEssential(),
         this.checkProxyHTTPS(),
         this.getProxyLocation(),
       ];
+
+      // run location as default
+      if (this.runProxyLocation_ === false) promises.pop();
 
       const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
       if (race.hasOwnProperty("timeoutdata")) {

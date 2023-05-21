@@ -117,4 +117,5 @@ export type PCheckerOptions = {
   publicIPAddress?: string;
   username?: string;
   password?: string;
+  runProxyLocation?: boolean;
 };
