@@ -249,6 +249,10 @@ export class PCheckerBase {
     this.updateOptions();
   }
 
+  public setRunProxyLocation(runProxyLocation: boolean): void {
+    this.runProxyLocation_ = runProxyLocation;
+  }
+
   public turnOffLogger(): void {
     this.logger_.transports.forEach((t) => (t.silent = true));
   }
