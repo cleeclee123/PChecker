@@ -75,6 +75,7 @@ app.get(
   "/checkessential",
   validateIPAddress,
   validatePortNumber,
+  validateTimeout,
   (req, res) => {
     const proxyHost = String(req.query.host);
     const proxyPort = String(req.query.port);
@@ -97,6 +98,7 @@ app.get(
   "/checkanonymity",
   validateIPAddress,
   validatePortNumber,
+  validateTimeout,
   (req, res) => {
     const proxyHost = String(req.query.host);
     const proxyPort = String(req.query.port);
@@ -115,95 +117,126 @@ app.get(
   }
 );
 
-app.get("/checkhttps", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/checkhttps",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkHTTPS())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkHTTPS())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
-app.get("/checkcontent", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/checkcontent",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkContent())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkContent())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
-app.get("/checkgoogle", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/checkgoogle",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkGoogle())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkGoogle())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
-app.get("/checkdnsleak", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/checkdnsleak",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkDNSLeak())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkDNSLeak())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
-app.get("/checklocation", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/checklocation",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkLocation())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkLocation())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
 app.get(
   "/checkwebrtcleak",
   validateIPAddress,
   validatePortNumber,
+  validateTimeout,
   (req, res) => {
     const proxyHost = String(req.query.host);
     const proxyPort = String(req.query.port);
@@ -222,22 +255,28 @@ app.get(
   }
 );
 
-app.get("/everything", validateIPAddress, validatePortNumber, (req, res) => {
-  const proxyHost = String(req.query.host);
-  const proxyPort = String(req.query.port);
-  const proxyTimeout = String(req.query.to);
+app.get(
+  "/everything",
+  validateIPAddress,
+  validatePortNumber,
+  validateTimeout,
+  (req, res) => {
+    const proxyHost = String(req.query.host);
+    const proxyPort = String(req.query.port);
+    const proxyTimeout = String(req.query.to);
 
-  const p = new P.PChecker({
-    host: proxyHost,
-    port: proxyPort,
-    timeout: proxyTimeout,
-  } as PCheckerOptions);
-  queue
-    .addPromise(() => p.checkAll())
-    .then((result) => {
-      res.json(result);
-    });
-});
+    const p = new P.PChecker({
+      host: proxyHost,
+      port: proxyPort,
+      timeout: proxyTimeout,
+    } as PCheckerOptions);
+    queue
+      .addPromise(() => p.checkAll())
+      .then((result) => {
+        res.json(result);
+      });
+  }
+);
 
 app.listen(localport, () => {
   console.log("Running at localhost:8181");
