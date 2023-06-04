@@ -3,6 +3,7 @@
 import http from "http";
 import fetch from "node-fetch";
 import os from "os";
+import { ProxyOptions } from "./checker/types";
 
 os.freemem();
 
@@ -55,6 +56,7 @@ async function fetchProxiesSINGLE(path: SingleProxyAPIPath) {
           // [host, port]
           let proxy: string[] = JSON.parse(data.toString());
 
+          /**@todo: use actual typescript here */
           let params = {
             host: proxy[0],
             port: proxy[1],
