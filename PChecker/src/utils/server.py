@@ -12,8 +12,6 @@ import json
 # get the list of free proxies
 
 # didsoft proxies
-
-
 def getProxiesDS(link, reqHeader=None):
     proxies = []
     r = requests.get(link)
@@ -91,15 +89,18 @@ def doyouhavethetime():
 
 @app.route('/singleproxiesGH')
 def getSingleProxiesGH():
-
     def generate():
-        for linkGH in githubRepoProxies:
-            proxyList = getProxiesGH(linkGH)
-            proxyListCount = len(proxyList) - 1
+        linkCount = 0
+        tempCount = 0
+        while linkCount < len(githubRepoProxies):
+            proxyList = getProxiesGH(githubRepoProxies[linkCount])
+            proxyListCount = len(getProxiesGH(githubRepoProxies[linkCount])) - 1
+            linkCount += 1
             while proxyListCount >= 0:
-                yield json.dumps(proxyList[proxyListCount]) + "\n"
+                yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
+                tempCount += 1
                 proxyListCount -= 1
-                time.sleep(0.25)
+                time.sleep(0.01)
 
     r = Response(generate(), mimetype='text/plain')
     return r
@@ -109,13 +110,17 @@ def getSingleProxiesGH():
 def getSingleProxiesDS():
 
     def generate():
-        for linkDS in didsoftProxies:
-            proxyList = getProxiesGH(linkDS)
-            proxyListCount = len(proxyList) - 1
+        linkCount = 0
+        tempCount = 0
+        while linkCount < len(didsoftProxies):
+            proxyList = getProxiesDS(didsoftProxies[linkCount])
+            proxyListCount = len(getProxiesDS(didsoftProxies[linkCount])) - 1
+            linkCount += 1
             while proxyListCount >= 0:
-                yield json.dumps(proxyList[proxyListCount]) + "\n"
+                yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
+                tempCount += 1
                 proxyListCount -= 1
-                time.sleep(0.25)
+                time.sleep(0.01)
 
     r = Response(generate(), mimetype='text/plain')
     return r

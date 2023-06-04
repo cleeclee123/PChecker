@@ -1,12 +1,12 @@
 import express, { Request, Response } from "express";
-import { PCheckerOptions } from "../checker/types.js";
+import { PCheckerOptions, ProxyInfoEssential } from "../checker/types.js";
 import * as P from "../checker/PChecker.js";
 import { MyConcurrentPromiseQueue } from "../checker/pqueue.js";
 
 const app = express();
 const localport = 6969;
 const queue = new MyConcurrentPromiseQueue({
-  maxNumberOfConcurrentPromises: 10,
+  maxNumberOfConcurrentPromises: 50,
 });
 
 function validateIPAddress(req: Request, res: Response, next: Function) {
@@ -68,11 +68,15 @@ function validateTimeout(req: Request, res: Response, next: Function) {
 }
 
 function getClientIPAddress(req: Request): String {
-  return req.socket.remoteAddress;
+  return req.socket.remoteAddress.slice(7);
 }
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ hello: "welcome to the PChecker API" });
+});
+
+app.get("/clientip", (req: Request, res: Response) => {
+  res.json({ clientip: getClientIPAddress(req) });
 });
 
 app.get(
@@ -92,13 +96,20 @@ app.get(
       timeout: proxyTimeout,
       publicIPAddress: clientIP,
     } as PCheckerOptions);
-    queue
-    .addPromise(() => p.checkEssential())
-    .then((result) => {
-        console.log(clientIP);
-        console.log(result);
-        res.json(result);
-      });
+    p.turnOffLogger();
+
+    try {
+      queue
+        .addPromise(() => p.checkEssential())
+        .then((result) => {
+          res.json(result);
+        });
+    } catch (error) {
+      res.json({
+        error: error,
+        proxyString: `${proxyHost}:${proxyPort}`,
+      } as ProxyInfoEssential);
+    }
   }
 );
 

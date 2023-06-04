@@ -15,7 +15,8 @@
     "pq": "npx tsc && node build/server/queue.js",
     "pqnew": "npx tsc && node build/server/pqueue.js",
     "utests": "node --loader tsx --test src/tests/tests.ts",
-    "bigex": "npx tsc && node build/bigex.js"
+    "bigex": "npx tsc && node build/bigex.js",
+    "bigexoriginal": "npx tsc && node build/bigexoriginal.js"
   },
   "repository": {
     "type": "git",

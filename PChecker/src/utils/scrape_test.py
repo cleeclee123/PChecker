@@ -1,4 +1,5 @@
 import requests
+import numpy as np
 from bs4 import BeautifulSoup
 
 # get the list of free proxies
@@ -56,8 +57,9 @@ githubRepoProxies = [
     "https://github.com/HyperBeats/proxy-list/blob/main/http.txt"
 ]
 
-for link in didsoftProxies:
-    print(getProxiesDS(link))
-
+proxies = []
 for link in githubRepoProxies:
-    print(getProxiesGH(link))
+    proxies += getProxiesGH(link)
+
+print(proxies)
+print(len(proxies))

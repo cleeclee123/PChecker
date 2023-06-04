@@ -42,24 +42,19 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "8443", "5000");
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
-// const proxyOptions = {
-//   host: "8.209.243.173",
-//   port: "80",
-//   timeout: "10000",
-//   publicIPAddress: " 64.189.16.27",
-//   runProxyLocation: true,
-// } as PCheckerOptions;
+const proxyOptions = {
+  host: "64.225.4.29",
+  port: "9865",
+  timeout: "10000",
+  publicIPAddress: " 64.189.16.27",
+  runProxyLocation: true,
+} as PCheckerOptions;
 
-// const p1 = new PChecker.PChecker(proxyOptions);
+const p1 = new PChecker.PChecker(proxyOptions);
 
-// let check1 = await p1.checkEssential();
+let check1 = await p1.checkEssential();
 
-// console.log(check1);
-
-let arrayAsString = `["186.121.235.66", "8080"]`
-let array = JSON.parse(arrayAsString);
-
-console.log(array)
+console.log(check1);
 
 // mb used
 let used = process.memoryUsage().heapUsed / 1024 / 1024;
