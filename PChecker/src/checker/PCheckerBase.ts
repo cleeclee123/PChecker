@@ -2,9 +2,13 @@
 
 import http from "http";
 import { ProxyOptions, ProxyError, PCheckerOptions } from "./types.js";
-import { ENUM_ERRORS } from "./emuns.js";
+import { ErrorsEnum } from "./emuns.js";
 import { createLogger, transports, format, Logger } from "winston";
 
+/**
+ * @todo:
+ *  - add default options
+ */
 export class PCheckerBase {
   protected host_: string;
   protected port_: string;
@@ -110,7 +114,7 @@ export class PCheckerBase {
 
       http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
-          errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+          errorObject.error = ErrorsEnum.STATUS_CODE_ERROR;
           this.logger_.error(`getPublicIP bad status code: ${res.statusCode}`);
           res.destroy();
         }
@@ -129,14 +133,14 @@ export class PCheckerBase {
           ) {
             myPublicIP = responseData.toString();
           } else {
-            errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+            errorObject.error = ErrorsEnum.JSON_PARSE_ERROR;
             this.logger_.error(`getPublicIP Regex IP Parse Error`);
           }
           res.destroy();
         });
 
         res.on("error", (error) => {
-          errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+          errorObject.error = ErrorsEnum.CONNECTION_ERROR;
           this.logger_.error(`getPublicIP connect error: ${error}`);
           res.destroy();
         });
@@ -157,7 +161,7 @@ export class PCheckerBase {
       return Promise.race([responsePromise, timeoutPromise]);
     } catch (error) {
       return new Promise((resolve) => {
-        resolve({ error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError);
+        resolve({ error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError);
       });
     }
   }

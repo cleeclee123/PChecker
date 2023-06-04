@@ -1,8 +1,4 @@
-import {
-  ENUM_ProxyAnonymity,
-  ENUM_ERRORS,
-  ENUM_DNSLeakCheck,
-} from "./emuns.js";
+import { ProxyAnonymityEnum, ErrorsEnum, DNSLeakEnum } from "./emuns.js";
 
 import http from "http";
 
@@ -53,14 +49,14 @@ export type ProxyOptions = {
 };
 
 export type ProxyError = {
-  error: ENUM_ERRORS;
+  error: ErrorsEnum;
   proxyString: string;
 };
 
 export type ProxyInfoFromHttp = {
   header: JSON;
   responseTime: number;
-  anonymity: ENUM_ProxyAnonymity;
+  anonymity: ProxyAnonymityEnum;
   cause: string[];
 };
 
@@ -90,7 +86,7 @@ export type ProxyDNSCheck = {
   currentServer: string;
   dnsServerCount: number;
   dnsServers: DNSResponseServer[];
-  conclusion: ENUM_DNSLeakCheck;
+  conclusion: DNSLeakEnum;
 };
 
 export type DNSResponseServer = {
@@ -103,12 +99,16 @@ export type DNSResponseServer = {
 
 export type ProxyInfoEssential = {
   judgeServerRes?: number;
-  anonymity?: ENUM_ProxyAnonymity | "";
+  anonymity?: ProxyAnonymityEnum | "";
   https?: boolean;
   httpConnectRes?: number;
   countryCode?: string;
   errors?: string[];
   proxyString?: string;
+  timeout?: number;
+  judgeError?: ErrorsEnum.PROXY_JUDGE_ERROR;
+  timeoutError?: ErrorsEnum.TIMEOUT;
+  unknownError?: ErrorsEnum.UNKNOWN_ERROR;
 };
 
 export type PCheckerOptions = {

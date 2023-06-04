@@ -1,12 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
-import concurrent.futures
-import socket
 
 # get the list of free proxies
 
-
-def getProxiesList1(link):
+# didsoft proxies
+def getProxiesDS(link, reqHeader=None):
     proxies = []
     r = requests.get(link)
     soup = BeautifulSoup(r.content, 'html.parser')
@@ -22,94 +20,44 @@ def getProxiesList1(link):
             pass
     return proxies
 
-
-def getProxiesGithub():
-    # r = requests.get('https://github.com/TheSpeedX/PROXY-List/blob/master/socks5.txt')
-    # r = requests.get('https://github.com/jetkai/proxy-list/blob/main/online-proxies/txt/proxies-socks5.txt')
-    r = requests.get(
-        'https://github.com/TheSpeedX/PROXY-List/blob/master/http.txt')
+# proxies scraped from github repos
+def getProxiesGH(link, reqHeader=None):
+    r = requests.get(link)
     soup = BeautifulSoup(r.content, 'html.parser')
     table = soup.find('table')
     proxies = []
     if (table.find_all('tr')):
         for row in table.find_all('tr'):
-            proxies.append(row.select('tr > td')[1].text)
+            host, port = str(row.select('tr > td')[1].text).split(':')
+            proxies.append([host, port])
     return proxies
 
 
-def checkPort(ip, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.settimeout(1)
-        sock.connect((ip, int(port)))
-        sock.shutdown(2)
-        return True
-    except:
-        return False
+# format like: ["ip", "port"]
+didsoftProxies = [
+    "https://free-proxy-list.net/",
+    "https://www.us-proxy.org/",
+    "https://www.sslproxies.org/"
+]
 
+# format like: ["ip", "port"]
+githubRepoProxies = [
+    "https://github.com/TheSpeedX/PROXY-List/blob/master/http.txt",
+    "https://github.com/monosans/proxy-list/blob/main/proxies/http.txt",
+    "https://github.com/ShiftyTR/Proxy-List/blob/master/http.txt",
+    "https://github.com/ShiftyTR/Proxy-List/blob/master/https.txt",
+    "https://github.com/mmpx12/proxy-list/blob/master/http.txt",
+    "https://github.com/mmpx12/proxy-list/blob/master/https.txt",
+    "https://github.com/zevtyardt/proxy-list/blob/main/http.txt",
+    "https://github.com/sunny9577/proxy-scraper/blob/master/proxies.txt",
+    "https://github.com/UptimerBot/proxy-list/blob/master/proxies/http.txt",
+    "https://github.com/roosterkid/openproxylist/blob/main/HTTPS_RAW.txt",
+    "https://github.com/prxchk/proxy-list/blob/main/http.txt",
+    "https://github.com/HyperBeats/proxy-list/blob/main/http.txt"
+]
 
-def checkHttps(proxy):
-    # state = False
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0'}
-    try:
-        r = requests.get('https://httpbin.org/ip', headers=headers,
-                         proxies={'https': proxy}, timeout=2)
-        return True
-        # print(f'response {r.json()}, {r.status_code}, proxy: {proxy}')
-    except requests.ConnectionError as err:
-        return False
-        # print(f'error with {proxy}')
+for link in didsoftProxies:
+    print(getProxiesDS(link))
 
-
-def checkHttp(proxy):
-    # state = False
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0'}
-    try:
-        r = requests.get('http://httpbin.org/ip', headers=headers,
-                         proxies={'http': proxy}, timeout=2)
-        return True
-        # print(f'response {r.json()}, {r.status_code}, proxy: {proxy}')
-    except requests.ConnectionError as err:
-        return False
-        # print(f'error with {proxy}')
-
-
-def checkGoogle(proxy):
-    # state = False
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0'}
-    try:
-        r = requests.get('https://www.google.com/', headers=headers,
-                         proxies={'https': proxy}, timeout=2)
-        return True
-        # print(f'response {r.json()}, {r.status_code}, proxy: {proxy}')
-    except requests.ConnectionError as err:
-        return False
-        # print(f'error with {proxy}')
-
-
-def check(proxy):
-    split = proxy.split(":")
-    if (checkPort(split[0], split[1])):
-        if (checkHttps(proxy) and checkHttp(proxy)):
-            print(f'["{split[0]}", "{split[1]}"],')
-        elif (checkHttps(proxy) and not checkHttp(proxy)):
-            print(f'["{split[0]}", "{split[1]}"],')
-        elif (checkHttp(proxy) and not checkHttps(proxy)):
-            print(f'["{split[0]}", "{split[1]}"],')
-            None
-    else:
-        # print("connection error")
-        None
-
-
-p1 = getProxiesList1("https://free-proxy-list.net/")
-p2 = getProxiesList1("https://www.us-proxy.org/")
-p3 = getProxiesList1("https://www.sslproxies.org/")
-
-print(p1 + p2 + p3)
-
-# with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
-#     executor.map(check, proxylist)
+for link in githubRepoProxies:
+    print(getProxiesGH(link))

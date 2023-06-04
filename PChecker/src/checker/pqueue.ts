@@ -2,7 +2,6 @@ import { v4 as uuid } from "uuid";
 import { createLogger, transports, format, Logger } from "winston";
 
 export type PromiseSupplier<T> = () => Promise<T>;
-
 type PromiseExecutionListener<T> = (result: FinishedPromiseResult<T>) => void;
 
 interface FinishedPromiseResult<T> {
@@ -34,8 +33,9 @@ export class MyConcurrentPromiseQueue<T> {
   >();
   private promiseCompletedTimesLog: Date[] = [];
   protected logger_: Logger;
+  private putToKVStore_: (result: any) => any;
 
-  constructor(options?: QueueOptions) {
+  constructor(options?: QueueOptions, putToKVStore?: (result: any) => any) {
     const defaultOptions = {
       maxNumberOfConcurrentPromises: 1,
       unitOfTimeMillis: 100,
@@ -59,6 +59,8 @@ export class MyConcurrentPromiseQueue<T> {
         })
       ),
     });
+
+    this.putToKVStore_ = putToKVStore;
   }
 
   public numberOfQueuedPromises(): number {
@@ -70,7 +72,7 @@ export class MyConcurrentPromiseQueue<T> {
   }
 
   public addPromise(promiseSupplier: PromiseSupplier<T>): Promise<T | null> {
-    return new Promise((resolve, reject) => {
+    const promiseResult: Promise<T | null> = new Promise((resolve, reject) => {
       const id = uuid();
       this.promisesToExecute.push({ id, promiseSupplier });
       this.promiseExecutedCallbacks.set(
@@ -81,6 +83,7 @@ export class MyConcurrentPromiseQueue<T> {
       );
       this.execute();
     });
+    return promiseResult;
   }
 
   private execute(): void {
@@ -91,9 +94,12 @@ export class MyConcurrentPromiseQueue<T> {
         this.promisesBeingExecuted.set(promise.id, promise);
         promise
           .promiseSupplier()
-          .then((result) => {
+          .then(async (result) => {
             this.onPromiseFulfilled(promise.id, result);
-            this.logger_.info(`${JSON.stringify(result)}`);
+            this.logger_.info(
+              `${promise.id} success => ${JSON.stringify(result)}`
+            );
+            if (this.putToKVStore_ !== undefined) this.putToKVStore_(result);
           })
           .catch((error) => {
             this.onPromiseRejected(promise.id, error);

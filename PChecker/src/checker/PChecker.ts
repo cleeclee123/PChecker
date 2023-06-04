@@ -133,9 +133,31 @@ export class PChecker extends PCheckerMixin {
    * @returns Promise<ProxyInfoEssential | ProxyError>
    * returns only essential info
    */
-  public async checkEssential(): Promise<ProxyInfoEssential | ProxyError> {
+  public async checkEssential(): Promise<ProxyInfoEssential> {
     this.nullChecks();
     const essential = await this.checkProxyEssential();
+
+    // final cleanup
+    let combineErrMes: string[] = [];
+    if (essential.judgeError) {
+      combineErrMes.push(String(essential.judgeError));
+      delete essential.judgeError;
+    }
+    if (essential.timeoutError) {
+      combineErrMes.push(String(essential.timeoutError));
+      delete essential.timeoutError;
+    }
+    if (essential.unknownError) {
+      combineErrMes.push(String(essential.unknownError));
+      delete essential.unknownError;
+    }
+
+    if (essential.errors) {
+      essential.errors.concat(combineErrMes);
+    } else if (combineErrMes.length > 0) {
+      essential.errors = combineErrMes;
+    }
+
     this.clearTimeouts();
 
     return essential;

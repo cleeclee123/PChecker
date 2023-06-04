@@ -67,8 +67,12 @@ function validateTimeout(req: Request, res: Response, next: Function) {
   next();
 }
 
+function getClientIPAddress(req: Request): String {
+  return req.socket.remoteAddress;
+}
+
 app.get("/", (req: Request, res: Response) => {
-  res.json({ hello: "hello" });
+  res.json({ hello: "welcome to the PChecker API" });
 });
 
 app.get(
@@ -80,15 +84,19 @@ app.get(
     const proxyHost = String(req.query.host);
     const proxyPort = String(req.query.port);
     const proxyTimeout = String(req.query.to);
+    const clientIP = getClientIPAddress(req);
 
     const p = new P.PChecker({
       host: proxyHost,
       port: proxyPort,
       timeout: proxyTimeout,
+      publicIPAddress: clientIP,
     } as PCheckerOptions);
     queue
-      .addPromise(() => p.checkEssential())
-      .then((result) => {
+    .addPromise(() => p.checkEssential())
+    .then((result) => {
+        console.log(clientIP);
+        console.log(result);
         res.json(result);
       });
   }
@@ -279,5 +287,5 @@ app.get(
 );
 
 app.listen(localport, () => {
-  console.log("Running at localhost:8181");
+  console.log(`Running at http://localhost:${localport}`);
 });

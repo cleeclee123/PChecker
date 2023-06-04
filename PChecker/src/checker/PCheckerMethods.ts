@@ -17,10 +17,10 @@ import {
   PCheckerOptions,
 } from "./types.js";
 import {
-  ENUM_FlaggedHeaderValues,
-  ENUM_ProxyAnonymity,
-  ENUM_ERRORS,
-  ENUM_DNSLeakCheck,
+  FlaggedHeaderValuesEnum,
+  ProxyAnonymityEnum,
+  ErrorsEnum,
+  DNSLeakEnum,
   customEnumError,
 } from "./emuns.js";
 import { PCheckerBase } from "./PCheckerBase.js";
@@ -91,7 +91,7 @@ export class PCheckerMethods extends PCheckerBase {
             resolve({
               error: customEnumError(
                 "ANONYMITY_CHECK",
-                ENUM_ERRORS.PUBLIC_IP_ADDRESS_ERROR
+                ErrorsEnum.PUBLIC_IP_ADDRESS_ERROR
               ),
             } as ProxyError);
           } else {
@@ -110,7 +110,7 @@ export class PCheckerMethods extends PCheckerBase {
               this.logger_.error(
                 `checkProxyAnonymity status code: ${res.statusCode}`
               );
-              errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              errorObject.error = ErrorsEnum.STATUS_CODE_ERROR;
               res.destroy();
             }
 
@@ -133,7 +133,7 @@ export class PCheckerMethods extends PCheckerBase {
                   this.publicIPAddress_ !== ({} as any)
                 ) {
                   for (const key of Object.keys(httpRequest.header)) {
-                    if (key in ENUM_FlaggedHeaderValues) {
+                    if (key in FlaggedHeaderValuesEnum) {
                       if (
                         String(httpRequest.header[key as keyof JSON]) ===
                         this.publicIPAddress_
@@ -146,28 +146,28 @@ export class PCheckerMethods extends PCheckerBase {
 
                   proxyInfoAnonymity =
                     pipCount === 0
-                      ? ENUM_ProxyAnonymity.Anonymous
-                      : ENUM_ProxyAnonymity.Transparent;
+                      ? ProxyAnonymityEnum.Anonymous
+                      : ProxyAnonymityEnum.Transparent;
                 } else if (
                   Object.keys(this.publicIPAddress_).length === 0 &&
                   this.publicIPAddress_.constructor === Object
                 ) {
                   proxyInfoAnonymity = undefined;
                 } else {
-                  proxyInfoAnonymity = ENUM_ProxyAnonymity.Elite;
+                  proxyInfoAnonymity = ProxyAnonymityEnum.Elite;
                 }
 
                 httpRequest.anonymity =
                   toFlag.length === 0
-                    ? ENUM_ProxyAnonymity.Elite
+                    ? ProxyAnonymityEnum.Elite
                     : proxyInfoAnonymity;
 
                 httpRequest.cause = toFlag;
                 if (httpRequest.cause.length === 0) {
-                  httpRequest.anonymity = ENUM_ProxyAnonymity.Elite;
+                  httpRequest.anonymity = ProxyAnonymityEnum.Elite;
                 }
               } catch (error) {
-                errorObject.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                errorObject.error = ErrorsEnum.JSON_PARSE_ERROR;
                 this.logger_.error(
                   `checkProxyAnonymity JSON parse error: ${error}`
                 );
@@ -177,7 +177,7 @@ export class PCheckerMethods extends PCheckerBase {
             });
 
             res.on("error", (error) => {
-              errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+              errorObject.error = ErrorsEnum.CONNECTION_ERROR;
               this.logger_.error(
                 `checkProxyAnonymity connection error: ${error}`
               );
@@ -194,7 +194,7 @@ export class PCheckerMethods extends PCheckerBase {
           });
 
           httpProxyRequestObject.on("error", (error) => {
-            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+            errorObject.error = ErrorsEnum.CONNECTION_ERROR;
             this.logger_.error(
               `checkProxyAnonymity connection error: ${error}`
             );
@@ -226,7 +226,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([timeoutPromise, response]);
     } catch (error) {
       this.logger_.error(`checkProxyAnonymity PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -310,7 +310,7 @@ export class PCheckerMethods extends PCheckerBase {
 
           // todo: better/more specifc error handling
           this.socket_.on("error", (error) => {
-            proxyError.error = ENUM_ERRORS.SOCKET_ERROR;
+            proxyError.error = ErrorsEnum.SOCKET_ERROR;
             this.logger_.error(`getProxyLocation connect error: ${error}`);
 
             this.socket_.destroy();
@@ -370,7 +370,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([bufferPromise, timeoutPromise]);
     } catch (error) {
       this.logger_.error(`checkProxyHTTPS PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -411,7 +411,7 @@ export class PCheckerMethods extends PCheckerBase {
                 this.logger_.error(
                   `checkProxyContent status code: ${res.statusCode}`
                 );
-                errorObject.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+                errorObject.error = ErrorsEnum.STATUS_CODE_ERROR;
                 res.destroy();
               }
 
@@ -429,7 +429,7 @@ export class PCheckerMethods extends PCheckerBase {
                       `proxy may have erased all website content on redirect : status code ${statuscode}`
                     );
                   } else {
-                    errorObject.error = ENUM_ERRORS.PROXY_JUDGE_EMPTY_RESPONSE;
+                    errorObject.error = ErrorsEnum.PROXY_JUDGE_EMPTY_RESPONSE;
                     this.logger_.error(
                       "checkProxyContent empty response from proxy judge"
                     );
@@ -445,7 +445,7 @@ export class PCheckerMethods extends PCheckerBase {
 
               res.on("error", (error) => {
                 this.logger_.error(`httpResponse ON-Error: ${error}`);
-                errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+                errorObject.error = ErrorsEnum.CONNECTION_ERROR;
                 res.destroy();
               });
 
@@ -456,7 +456,7 @@ export class PCheckerMethods extends PCheckerBase {
                 );
                 if (errorObject.hasOwnProperty("error")) {
                   // the proxy judge is expected to work
-                  if (errorObject.error === ENUM_ERRORS.STATUS_CODE_ERROR) {
+                  if (errorObject.error === ErrorsEnum.STATUS_CODE_ERROR) {
                     this.logger_.error("the proxy judge is failing"); // maybe because its written in php
                     reject(errorObject);
                   }
@@ -468,7 +468,7 @@ export class PCheckerMethods extends PCheckerBase {
           );
 
           httpProxyRequestObject.on("error", (error) => {
-            errorObject.error = ENUM_ERRORS.CONNECTION_ERROR;
+            errorObject.error = ErrorsEnum.CONNECTION_ERROR;
             this.logger_.error(`checkProxyContent connection error: ${error}`);
             httpProxyRequestObject.destroy();
           });
@@ -563,7 +563,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([contentCheck, timeoutPromise]);
     } catch (error) {
       this.logger_.error(`checkProxyContent PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -594,7 +594,7 @@ export class PCheckerMethods extends PCheckerBase {
         const httpGetRequestObject = () => {
           const httpProxyRequestObject = http.get(googleOptions, (res) => {
             if (res.statusCode !== 200) {
-              googleCheckError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              googleCheckError.error = ErrorsEnum.STATUS_CODE_ERROR;
               this.logger_.error(`google check status code: ${res.statusCode}`);
             }
             res.destroy();
@@ -609,7 +609,7 @@ export class PCheckerMethods extends PCheckerBase {
           });
 
           httpProxyRequestObject.on("error", (error) => {
-            googleCheckError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            googleCheckError.error = ErrorsEnum.CONNECTION_ERROR;
             this.logger_.error(`googlecheck connection error: ${error}`);
             httpProxyRequestObject.destroy();
           });
@@ -639,7 +639,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([googlePromise, timeoutPromise]);
     } catch (error) {
       this.logger_.error(`google check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -686,7 +686,7 @@ export class PCheckerMethods extends PCheckerBase {
         const httpGetRequestObject = () => {
           const httpProxyRequestObject = http.get(requestOptions, (res) => {
             if (res.statusCode !== 200) {
-              proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              proxyError.error = ErrorsEnum.STATUS_CODE_ERROR;
               this.logger_.error(
                 `getProxyLocation bad status code: ${res.statusCode}`
               );
@@ -704,14 +704,14 @@ export class PCheckerMethods extends PCheckerBase {
                 const json: any = JSON.parse(responseData.join(""));
                 proxyInfo.data = json;
               } catch (error) {
-                proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                proxyError.error = ErrorsEnum.JSON_PARSE_ERROR;
                 this.logger_.error(`getProxyLocation JSON Parse Error`);
               }
               res.destroy();
             });
 
             res.on("error", (error) => {
-              proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+              proxyError.error = ErrorsEnum.CONNECTION_ERROR;
               this.logger_.error(`getProxyLocation connect error: ${error}`);
               res.destroy();
             });
@@ -728,7 +728,7 @@ export class PCheckerMethods extends PCheckerBase {
           });
 
           httpProxyRequestObject.on("error", (error) => {
-            proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            proxyError.error = ErrorsEnum.CONNECTION_ERROR;
             this.logger_.error(`geolocation connection error: ${error}`);
             httpProxyRequestObject.destroy();
           });
@@ -758,7 +758,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([geolocationPromise, timeoutPromise]);
     } catch (error) {
       // console.log(`google check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -808,7 +808,7 @@ export class PCheckerMethods extends PCheckerBase {
         const httpGetRequestObject = () => {
           const httpProxyRequestObject = http.get(options, (res) => {
             if (res.statusCode !== 200) {
-              proxyError.error = ENUM_ERRORS.STATUS_CODE_ERROR;
+              proxyError.error = ErrorsEnum.STATUS_CODE_ERROR;
               this.logger_.error(`dnsLeak bad status code: ${res.statusCode}`);
               res.destroy();
             }
@@ -837,7 +837,7 @@ export class PCheckerMethods extends PCheckerBase {
                 dnsLeakCheck.dnsServerCount = dnsServersCount;
 
                 if (dnsServersCount === 0) {
-                  proxyError.error = ENUM_ERRORS.NO_DNS_SERVERS;
+                  proxyError.error = ErrorsEnum.NO_DNS_SERVERS;
                   this.logger_.error(`no dns servers found`);
                   res.destroy();
                 }
@@ -849,22 +849,22 @@ export class PCheckerMethods extends PCheckerBase {
                   .forEach((server: DNSResponseServer) => {
                     if (server.ip === "DNS may be leaking.") {
                       dnsLeakCheck.conclusion =
-                        ENUM_DNSLeakCheck.PossibleDNSLeak;
+                        DNSLeakEnum.PossibleDNSLeak;
                     } else if (server.ip === "DNS is bot leaking.") {
-                      dnsLeakCheck.conclusion = ENUM_DNSLeakCheck.NoDNSLeak;
+                      dnsLeakCheck.conclusion = DNSLeakEnum.NoDNSLeak;
                     }
                   });
 
                 resolve(dnsLeakCheck);
               } catch (error) {
-                proxyError.error = ENUM_ERRORS.JSON_PARSE_ERROR;
+                proxyError.error = ErrorsEnum.JSON_PARSE_ERROR;
                 this.logger_.error(`dnsLeak JSON Parse Error`);
                 res.destroy();
               }
             });
 
             res.on("error", (error) => {
-              proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+              proxyError.error = ErrorsEnum.CONNECTION_ERROR;
               this.logger_.error(`dnsLeak connect error: ${error}`);
               res.destroy();
             });
@@ -879,7 +879,7 @@ export class PCheckerMethods extends PCheckerBase {
           });
 
           httpProxyRequestObject.on("error", (error) => {
-            proxyError.error = ENUM_ERRORS.CONNECTION_ERROR;
+            proxyError.error = ErrorsEnum.CONNECTION_ERROR;
             this.logger_.error(`dns check connection error: ${error}`);
             httpProxyRequestObject.destroy();
           });
@@ -915,7 +915,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([dnsLeakPromise, timeoutPromise]);
     } catch (error) {
       this.logger_.error(`dns leak check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 
@@ -1003,7 +1003,7 @@ export class PCheckerMethods extends PCheckerBase {
       return Promise.race([hasLeak(), timeoutPromise]);
     } catch (error) {
       this.logger_.error(`webrtc leak check PromiseRace Error: ${error}`);
-      return { error: ENUM_ERRORS.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
     }
   }
 }

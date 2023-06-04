@@ -1,6 +1,5 @@
 import * as PChecker from "./checker/PChecker.js";
-import * as PCheckerEssential from "./checker/PCheckerEssential.js";
-import { MyConcurrentPromiseQueue } from "mypqueue";
+import { PCheckerOptions } from "./checker/types.js";
 import os from "os";
 
 os.freemem();
@@ -43,17 +42,24 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "8443", "5000");
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
-let p1 = new PChecker.PChecker();
-p1.setHost("158.160.56.149");
-p1.setPort("8080");
-p1.setTimeout("5000");
-p1.setPublicIP("73.110.181.186")
+// const proxyOptions = {
+//   host: "8.209.243.173",
+//   port: "80",
+//   timeout: "10000",
+//   publicIPAddress: " 64.189.16.27",
+//   runProxyLocation: true,
+// } as PCheckerOptions;
 
-// 158.160.56.149:8080
+// const p1 = new PChecker.PChecker(proxyOptions);
 
-let check1 = await p1.checkContent();
+// let check1 = await p1.checkEssential();
 
-console.log(check1);
+// console.log(check1);
+
+let arrayAsString = `["186.121.235.66", "8080"]`
+let array = JSON.parse(arrayAsString);
+
+console.log(array)
 
 // mb used
 let used = process.memoryUsage().heapUsed / 1024 / 1024;
@@ -62,4 +68,3 @@ console.log(used);
 console.timeEnd();
 
 process.kill(process.pid);
-

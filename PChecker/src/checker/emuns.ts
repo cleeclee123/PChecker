@@ -1,4 +1,4 @@
-export enum ENUM_FlaggedHeaderValues {
+export enum FlaggedHeaderValuesEnum {
   AUTHENTICATION = "AUTHENTICATION",
   CLIENT_IP = "CLIENT_IP",
   FROM = "FROM",
@@ -15,19 +15,19 @@ export enum ENUM_FlaggedHeaderValues {
   X_FORWARDED_HOST = "X_FORWARDED_HOST",
   X_PROXY_ID = "X_PROXY_ID",
   X_FRAME_OPTIONS = "X_FRAME_OPTIONS",
-  X_CONTENT_TYPE_OPTION  = "X_CONTENT_TYPE_OPTION",
+  X_CONTENT_TYPE_OPTION = "X_CONTENT_TYPE_OPTION",
   X_DNS_PREFETCH_CONTROL_CONTROL = "X_DNS_PREFETCH_CONTROL_CONTROL",
-  X_XSS_PROTECTION = "X_XSS_PROTECTION", 
+  X_XSS_PROTECTION = "X_XSS_PROTECTION",
   SET_COOKIES = "SET_COOKIES",
 }
 
-export enum ENUM_ProxyAnonymity {
+export enum ProxyAnonymityEnum {
   Transparent = "Transparent",
   Anonymous = "Anonymous",
   Elite = "Elite",
 }
 
-export enum ENUM_ERRORS {
+export enum ErrorsEnum {
   STATUS_CODE_ERROR = "STATUS_CODE_ERROR",
   CONNECTION_ERROR = "CONNECTION_ERROR",
   JSON_PARSE_ERROR = "JSON_PARSE_ERROR",
@@ -41,14 +41,15 @@ export enum ENUM_ERRORS {
   PROXY_JUDGE_ERROR = "PROXY_JUDGE_ERROR",
   PROXY_JUDGE_TIMEOUT = "PROXY_JUDGE_TIMEOUT",
   PROXY_JUDGE_EMPTY_RESPONSE = "PROXY_JUDGE_EMPTY_RESPONSE",
-  GLOBAL_TIMEOUT = "GLOBAL_TIMEOUT",
+  TIMEOUT = "TIMEOUT",
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
 }
 
-export const customEnumError = (customMessage: string, error: ENUM_ERRORS) => {
+export const customEnumError = (customMessage: string, error: ErrorsEnum) => {
   return `${customMessage}_${error}`;
-}
+};
 
-export enum ENUM_DNSLeakCheck {
+export enum DNSLeakEnum {
   NoDNSLeak = 0,
   PossibleDNSLeak = 1,
 }
