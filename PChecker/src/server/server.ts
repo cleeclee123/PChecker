@@ -1,7 +1,10 @@
+"use strict";
+
 import express, { Request, Response } from "express";
 import { PCheckerOptions, ProxyInfoEssential } from "../checker/types.js";
 import * as P from "../checker/PChecker.js";
 import { MyConcurrentPromiseQueue } from "../checker/pqueue.js";
+import { StatusMonitor } from "./expressMonitor.js";
 
 const app = express();
 const localport = 6969;
@@ -70,6 +73,10 @@ function validateTimeout(req: Request, res: Response, next: Function) {
 function getClientIPAddress(req: Request): String {
   return req.socket.remoteAddress.slice(7);
 }
+
+// status page, path: /status
+const statusMonitor = new StatusMonitor();
+statusMonitor.mount(app, localport);
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ hello: "welcome to the PChecker API" });

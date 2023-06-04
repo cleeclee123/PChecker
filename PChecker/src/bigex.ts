@@ -180,7 +180,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
   });
 }
 
-await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesDS);
+await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesGH);
 // console.log(await fetchProxiesLIST(ListProxyAPIPath.proxiesDS));
 
 // mb used
