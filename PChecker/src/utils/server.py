@@ -91,14 +91,15 @@ def doyouhavethetime():
 def getSingleProxiesGH():
     def generate():
         linkCount = 0
-        tempCount = 0
+        # tempCount = 0
         while linkCount < len(githubRepoProxies):
             proxyList = getProxiesGH(githubRepoProxies[linkCount])
             proxyListCount = len(getProxiesGH(githubRepoProxies[linkCount])) - 1
             linkCount += 1
             while proxyListCount >= 0:
-                yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
-                tempCount += 1
+                # yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
+                yield f'{json.dumps(proxyList[proxyListCount])} \n' 
+                #tempCount += 1
                 proxyListCount -= 1
                 time.sleep(0.01)
 
@@ -111,14 +112,15 @@ def getSingleProxiesDS():
 
     def generate():
         linkCount = 0
-        tempCount = 0
+        # tempCount = 0
         while linkCount < len(didsoftProxies):
             proxyList = getProxiesDS(didsoftProxies[linkCount])
             proxyListCount = len(getProxiesDS(didsoftProxies[linkCount])) - 1
             linkCount += 1
             while proxyListCount >= 0:
-                yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
-                tempCount += 1
+                # yield f'{tempCount} {json.dumps(proxyList[proxyListCount])} \n' 
+                yield f'{json.dumps(proxyList[proxyListCount])} \n' 
+                # tempCount += 1
                 proxyListCount -= 1
                 time.sleep(0.01)
 

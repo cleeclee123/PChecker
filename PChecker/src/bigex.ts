@@ -1,10 +1,8 @@
-// import * as PChecker from "./checker/PChecker.js";
-// import { PCheckerOptions, ProxyInfoEssential } from "./checker/types.js";
-// import { MyConcurrentPromiseQueue } from "./checker/pqueue.js";
+"use strict";
+
 import http from "http";
 import fetch from "node-fetch";
 import os from "os";
-import url from "url";
 
 os.freemem();
 
@@ -32,6 +30,8 @@ enum SingleProxyAPIPath {
 }
 
 async function fetchProxiesSINGLE(path: SingleProxyAPIPath) {
+  let count = 0;
+
   return new Promise((resolve, reject) => {
     const requestOptions = {
       host: "127.0.0.1",
@@ -68,7 +68,7 @@ async function fetchProxiesSINGLE(path: SingleProxyAPIPath) {
             .join("&");
 
           let url = `http://127.0.0.1:6969/checkessential?${query}`;
-          console.log(url);
+          console.log(url, count++);
 
           await fetch(url);
         } catch (error: any) {
@@ -104,6 +104,8 @@ enum ListProxyAPIPath {
 }
 
 async function fetchProxiesLIST(path: ListProxyAPIPath) {
+  let tempcount = 0;
+
   return new Promise((resolve, reject) => {
     const requestOptions = {
       host: "127.0.0.1",
@@ -144,7 +146,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
               .join("&");
 
             let url = `http://127.0.0.1:6969/checkessential?${query}`;
-            console.log(url);
+            console.log(url, count++);
 
             fetch(url);
             count++;

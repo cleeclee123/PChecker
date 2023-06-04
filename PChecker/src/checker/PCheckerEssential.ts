@@ -11,6 +11,12 @@ import {
   customEnumError,
 } from "./emuns.js";
 
+/**
+ * @todo:
+ *  - testing infra
+ *  - closures clean up
+ *  - other optimizations
+ */
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
   private hasErrors_: boolean;
