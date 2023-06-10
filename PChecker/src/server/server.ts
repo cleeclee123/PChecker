@@ -1,13 +1,19 @@
 "use strict";
 
 import express, { Request, Response } from "express";
+import compression from "compression";
+import cors from "cors";
 import { PCheckerOptions, ProxyInfoEssential } from "../checker/types.js";
 import * as P from "../checker/PChecker.js";
 import { MyConcurrentPromiseQueue } from "../checker/pqueue.js";
 import { StatusMonitor } from "./expressMonitor.js";
 
 const app = express();
+app.use(cors());
+app.use(compression());
+
 const localport = 6969;
+
 const queue = new MyConcurrentPromiseQueue({
   maxNumberOfConcurrentPromises: 50,
 });
