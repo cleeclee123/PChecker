@@ -60,7 +60,7 @@ async function fetchProxiesSINGLE(path: SingleProxyAPIPath) {
           let params = {
             host: proxy[0],
             port: proxy[1],
-            to: "5000",
+            to: "10000",
           } as any;
 
           let query = Object.keys(params)
@@ -137,7 +137,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
             let params = {
               host: proxy[i][0],
               port: proxy[i][1],
-              to: "5000",
+              to: "10000",
             } as any;
 
             let query = Object.keys(params)
@@ -180,7 +180,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
   });
 }
 
-await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesGH);
+console.log(await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesGH));
 // console.log(await fetchProxiesLIST(ListProxyAPIPath.proxiesDS));
 
 // mb used
@@ -190,3 +190,5 @@ console.log(used);
 console.timeEnd();
 
 process.kill(process.pid);
+
+

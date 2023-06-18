@@ -1,6 +1,8 @@
 import * as PChecker from "./checker/PChecker.js";
 import { PCheckerOptions } from "./checker/types.js";
+import http from "http";
 import os from "os";
+import tls from "tls";
 
 os.freemem();
 
@@ -43,18 +45,82 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
 const proxyOptions = {
-  host: "64.225.4.29",
-  port: "9865",
+  host: "107.1.93.216",
+  port: "80",
   timeout: "10000",
-  publicIPAddress: " 64.189.16.27",
+  publicIPAddress: "64.189.16.212",
   runProxyLocation: true,
 } as PCheckerOptions;
 
 const p1 = new PChecker.PChecker(proxyOptions);
-
 let check1 = await p1.checkEssential();
-
 console.log(check1);
+
+
+
+//////////////////////////////////////////////////////////////
+// Test HTTP Requests 
+
+const httpReqCleanup = (reqObj: http.ClientRequest) => {
+  reqObj.on("error", (error) => {
+    console.log("http error");
+    console.log(error);
+    reqObj.destroy();
+  });
+
+  reqObj.on("close", () => {
+    console.log("http closed");
+  });
+
+  reqObj.end();
+
+  return reqObj;
+};
+
+async function testNewJudge() {
+  return new Promise((resolve, reject) => {
+    const reqOptions = {
+      host: "107.1.93.216",
+      port: 80,
+      path: "http://198.58.101.166:6969/azenv",
+      // path: "http://myproxyjudgeclee.software/pj-cleeclee123.php",
+      method: "GET",
+      headers: {
+        Host: "198.58.101.166",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
+      },
+    };
+
+    const resObject = http.get(reqOptions, (res) => {
+      if (res.statusCode !== 200) {
+        console.log(res.statusCode);
+        res.destroy();
+      }
+
+      res.setEncoding("utf8");
+      let responseData = [] as string[];
+      res.on("data", (data) => {
+        responseData.push(data);
+      });
+
+      res.on("end", () => {});
+
+      res.on("error", (error) => {
+        console.log(error);
+        res.destroy();
+      });
+
+      res.on("close", () => {
+        resolve(responseData);
+      });
+    });
+
+    httpReqCleanup(resObject);
+  });
+}
+
+// console.log(await testNewJudge());
 
 // mb used
 let used = process.memoryUsage().heapUsed / 1024 / 1024;

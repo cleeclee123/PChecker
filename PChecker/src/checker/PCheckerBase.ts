@@ -14,6 +14,7 @@ export class PCheckerBase {
   protected port_: string;
   protected timeout_: number;
   protected optionspj_: ProxyOptions;
+  protected optionspjExpressApp_: any;
   protected agent_: http.Agent;
   protected publicIPAddress_: string;
   protected runProxyLocation_: boolean;
@@ -24,7 +25,8 @@ export class PCheckerBase {
   protected logger_: Logger;
 
   protected static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
-
+  protected static readonly kProxyJudgeHost: string = "198.58.101.166";
+  protected static readonly kProxyJudgeURLExpressApp: string = `http://198.58.101.166:6969/azenv`;
   protected static readonly kUserAgents: string[] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
@@ -32,6 +34,33 @@ export class PCheckerBase {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9",
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36",
   ];
+  protected readonly kFlaggedHeaderValuesSet: Set<string> = new Set([
+    "authentication",
+    "client-ip",
+    "x-client-ip",
+    "from",
+    "forwarded-for",
+    "forwarded",
+    "proxy-authorization",
+    "proxy-connection",
+    "remote-addr",
+    "via",
+    "forwarded",
+    "forwarded-for",
+    "x-cluster-client-ip",
+    "x-forwarded-for",
+    "x-forwarded-for-ip",
+    "x-forwarded-proto",
+    "x-forwarded",
+    "x-forwarded-host",
+    "x-proxy-id",
+    "x-frame-options",
+    "x-content-type-option",
+    "x-dns-prefetch-control-control",
+    "x-xss-protection",
+    "x-real-ip",
+    "set-cookies",
+  ]);
 
   constructor(pcheckerOptions?: PCheckerOptions) {
     // always constructed
@@ -81,6 +110,20 @@ export class PCheckerBase {
       })),
     };
 
+    this.optionspjExpressApp_ = {
+      host: this.host_,
+      port: Number(this.port_),
+      method: "GET",
+      path: PCheckerBase.kProxyJudgeURLExpressApp,
+      headers: {
+        Host: PCheckerBase.kProxyJudgeHost,
+        "User-Agent":
+          PCheckerBase.kUserAgents[
+            Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
+          ],
+      },
+    };
+
     this.logger_ = createLogger({
       transports: [new transports.Console()],
       format: format.combine(
@@ -107,9 +150,9 @@ export class PCheckerBase {
 
       let myPublicIP: string = "";
       const requestOptions = {
-        host: "api.ipify.org",
-        port: 80,
-        path: "/",
+        host: PCheckerBase.kProxyJudgeHost,
+        port: 6969,
+        path: "/clientip",
       };
 
       http.get(requestOptions, (res) => {
@@ -119,22 +162,22 @@ export class PCheckerBase {
           res.destroy();
         }
 
-        res.setEncoding("utf8");
-        let responseData = [] as string[];
+        let responseData = [] as any[];
         res.on("data", (data) => {
           responseData.push(data);
         });
 
         res.on("end", () => {
-          if (
-            /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
-              responseData.toString()
-            )
-          ) {
-            myPublicIP = responseData.toString();
-          } else {
+          try {
+            const clientIP = JSON.parse(Buffer.concat(responseData).toString());
+            if (clientIP.hasOwnProperty("clientip")) {
+              myPublicIP = clientIP["clientip"]
+            } else {
+              errorObject.error = ErrorsEnum.JSON_PARSE_ERROR;
+            }
+          } catch (error) {
             errorObject.error = ErrorsEnum.JSON_PARSE_ERROR;
-            this.logger_.error(`getPublicIP Regex IP Parse Error`);
+            this.logger_.error(`getPublicIP JSON Parse Error`);
           }
           res.destroy();
         });

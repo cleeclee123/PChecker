@@ -1,0 +1,22 @@
+{
+  "connection": "upgrade",
+  "host": "198.58.101.166",
+  "user-agent": "curl/8.0.1",
+  "accept": "*/*",
+  "via": "1.1 shipctc.com (Apache/2.4.51)"
+}
+
+{
+  "HOST": "myproxyjudgeclee.software",
+  "USER_AGENT": "curl/8.0.1",
+  "ACCEPT": "*/*",
+  "VIA": "1.1 shipctc.com (Apache/2.4.51)",
+  "CONNECTION": "close",
+  "ADDR": "34.233.119.103",
+  "SCHEME": "http",
+  "PORT": "45590",
+  "METHOD": "GET",
+  "URI": "/pj-cleeclee123.php",
+  "TIME_FLOAT": 1687097901.148413,
+  "TIME": 1687097901
+}
