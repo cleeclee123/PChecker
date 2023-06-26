@@ -25,7 +25,7 @@ export class PCheckerBase {
   protected logger_: Logger;
 
   protected static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
-  protected static readonly kProxyJudgeHost: string = "198.58.101.166";
+  protected static readonly kProxyJudgeExpressHost: string = "198.58.101.166";
   protected static readonly kProxyJudgeURLExpressApp: string = `http://198.58.101.166:6969/azenv`;
   protected static readonly kUserAgents: string[] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
@@ -116,7 +116,7 @@ export class PCheckerBase {
       method: "GET",
       path: PCheckerBase.kProxyJudgeURLExpressApp,
       headers: {
-        Host: PCheckerBase.kProxyJudgeHost,
+        Host: PCheckerBase.kProxyJudgeExpressHost,
         "User-Agent":
           PCheckerBase.kUserAgents[
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
@@ -142,20 +142,18 @@ export class PCheckerBase {
    * Gets Your Public IP Address
    */
   protected getPublicIP(): Promise<string | ProxyError> {
-    const timeoutPromise: Promise<string> = this.createTimeout("timedout");
-
-    const responsePromise = new Promise<string | ProxyError>((resolve) => {
+    return new Promise<string | ProxyError>((resolve) => {
       const startTime = new Date().getTime();
       const errorObject = {} as ProxyError;
 
       let myPublicIP: string = "";
       const requestOptions = {
-        host: PCheckerBase.kProxyJudgeHost,
+        host: PCheckerBase.kProxyJudgeExpressHost,
         port: 6969,
         path: "/clientip",
       };
 
-      http.get(requestOptions, (res) => {
+      const httpRequest = http.get(requestOptions, (res) => {
         if (res.statusCode !== 200) {
           errorObject.error = ErrorsEnum.STATUS_CODE_ERROR;
           this.logger_.error(`getPublicIP bad status code: ${res.statusCode}`);
@@ -171,7 +169,7 @@ export class PCheckerBase {
           try {
             const clientIP = JSON.parse(Buffer.concat(responseData).toString());
             if (clientIP.hasOwnProperty("clientip")) {
-              myPublicIP = clientIP["clientip"]
+              myPublicIP = clientIP["clientip"];
             } else {
               errorObject.error = ErrorsEnum.JSON_PARSE_ERROR;
             }
@@ -196,17 +194,21 @@ export class PCheckerBase {
           else resolve(myPublicIP);
         });
       });
-    });
 
-    // abiding readiness pattern, returning a promise
-    // not awaiting promise here will need to handle this in run()
-    try {
-      return Promise.race([responsePromise, timeoutPromise]);
-    } catch (error) {
-      return new Promise((resolve) => {
-        resolve({ error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError);
+      httpRequest.on("error", (error) => {
+        this.logger_.error(`getPublicIP socket hang up error: ${error}`);
+        this.logger_.error(`Did you forget to start azenv?`);
+        errorObject.error = ErrorsEnum.SOCKET_ERROR;
+        httpRequest.destroy();
       });
-    }
+
+      httpRequest.on("close", () => {
+        this.logger_.info("HTTP Request Object Closed (Base)");
+        if (Object.keys(errorObject).length !== 0) resolve(errorObject);
+      });
+
+      httpRequest.end();
+    });
   }
 
   // function creates timeout, mem is managed by clearTimeouts()

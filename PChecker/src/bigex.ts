@@ -3,7 +3,7 @@
 import http from "http";
 import fetch from "node-fetch";
 import os from "os";
-import { ProxyOptions } from "./checker/types";
+import { ProxyOptions, ProxyInfoEssential } from "./checker/types";
 
 os.freemem();
 
@@ -150,7 +150,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
             let url = `http://127.0.0.1:6969/checkessential?${query}`;
             console.log(url, count++);
 
-            fetch(url);
+            fetch(url);            
             count++;
           }
         } catch (error: any) {
@@ -180,7 +180,7 @@ async function fetchProxiesLIST(path: ListProxyAPIPath) {
   });
 }
 
-console.log(await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesGH));
+console.log(await fetchProxiesSINGLE(SingleProxyAPIPath.singleproxiesDS));
 // console.log(await fetchProxiesLIST(ListProxyAPIPath.proxiesDS));
 
 // mb used

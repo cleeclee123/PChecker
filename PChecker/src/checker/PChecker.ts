@@ -77,19 +77,6 @@ export class PChecker extends PCheckerMixin {
   }
 
   /**
-   * @method: checkGoogle()
-   * @returns Promise<boolean | ProxyError>
-   * runs google support check
-   */
-  public async checkGoogle(): Promise<boolean | ProxyError> {
-    this.nullChecks();
-    const contentCheck = await this.checkProxyGoogleSupport();
-    this.clearTimeouts();
-
-    return contentCheck;
-  }
-
-  /**
    * @method: checkDNSLeak()
    * @returns Promise<ProxyDNSCheck | ProxyError>
    * runs dns leak check
@@ -174,7 +161,6 @@ export class PChecker extends PCheckerMixin {
       this.checkProxyAnonymity(),
       this.checkProxyHTTPSSupport(),
       this.checkProxyContent(),
-      this.checkProxyGoogleSupport(),
       this.checkProxyDNSLeak(),
       this.checkProxyLocation(),
       this.checkProxyWebRTCLeak(),

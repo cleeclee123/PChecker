@@ -33,7 +33,6 @@ export class MyConcurrentPromiseQueue<T> {
   >();
   private promiseCompletedTimesLog: Date[] = [];
   protected logger_: Logger;
-  private putToKVStore_: (result: any) => any;
 
   constructor(options?: QueueOptions, putToKVStore?: (result: any) => any) {
     const defaultOptions = {
@@ -59,8 +58,6 @@ export class MyConcurrentPromiseQueue<T> {
         })
       ),
     });
-
-    this.putToKVStore_ = putToKVStore;
   }
 
   public numberOfQueuedPromises(): number {
@@ -99,7 +96,6 @@ export class MyConcurrentPromiseQueue<T> {
             this.logger_.info(
               `${promise.id} success => ${JSON.stringify(result)}`
             );
-            if (this.putToKVStore_ !== undefined) this.putToKVStore_(result);
           })
           .catch((error) => {
             this.onPromiseRejected(promise.id, error);

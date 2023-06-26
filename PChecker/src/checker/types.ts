@@ -102,6 +102,7 @@ export type ProxyInfoEssential = {
   anonymity?: ProxyAnonymityEnum | "";
   https?: boolean;
   httpConnectRes?: number;
+  googleSupport?:boolean;
   countryCode?: string;
   errors?: string[];
   proxyString?: string;

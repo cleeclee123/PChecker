@@ -15,7 +15,7 @@ app.use(compression());
 const localport = 6969;
 
 const queue = new MyConcurrentPromiseQueue({
-  maxNumberOfConcurrentPromises: 50,
+  maxNumberOfConcurrentPromises: 250,
 });
 
 function validateIPAddress(req: Request, res: Response, next: Function) {
@@ -76,20 +76,12 @@ function validateTimeout(req: Request, res: Response, next: Function) {
   next();
 }
 
-function getClientIPAddress(req: Request): String {
-  return req.socket.remoteAddress.slice(7);
-}
-
 // status page, path: /status
 const statusMonitor = new StatusMonitor();
 statusMonitor.mount(app, localport);
 
 app.get("/", (req: Request, res: Response) => {
   res.json({ hello: "welcome to the PChecker API" });
-});
-
-app.get("/clientip", (req: Request, res: Response) => {
-  res.json({ clientip: getClientIPAddress(req) });
 });
 
 app.get(
@@ -101,13 +93,11 @@ app.get(
     const proxyHost = String(req.query.host);
     const proxyPort = String(req.query.port);
     const proxyTimeout = String(req.query.to);
-    const clientIP = getClientIPAddress(req);
 
     const p = new P.PChecker({
       host: proxyHost,
       port: proxyPort,
       timeout: proxyTimeout,
-      publicIPAddress: clientIP,
     } as PCheckerOptions);
     p.turnOffLogger();
 
@@ -189,29 +179,6 @@ app.get(
     } as PCheckerOptions);
     queue
       .addPromise(() => p.checkContent())
-      .then((result) => {
-        res.json(result);
-      });
-  }
-);
-
-app.get(
-  "/checkgoogle",
-  validateIPAddress,
-  validatePortNumber,
-  validateTimeout,
-  (req, res) => {
-    const proxyHost = String(req.query.host);
-    const proxyPort = String(req.query.port);
-    const proxyTimeout = String(req.query.to);
-
-    const p = new P.PChecker({
-      host: proxyHost,
-      port: proxyPort,
-      timeout: proxyTimeout,
-    } as PCheckerOptions);
-    queue
-      .addPromise(() => p.checkGoogle())
       .then((result) => {
         res.json(result);
       });

@@ -25,11 +25,12 @@ export enum ProxyAnonymityEnum {
   Transparent = "Transparent",
   Anonymous = "Anonymous",
   Elite = "Elite",
+  Unknown = "Unknown"
 }
 
 export enum ErrorsEnum {
-  STATUS_CODE_ERROR = "STATUS_CODE_ERROR",
   CONNECTION_ERROR = "CONNECTION_ERROR",
+  STATUS_CODE_ERROR = "NON_200_STATUS_CODE",
   JSON_PARSE_ERROR = "JSON_PARSE_ERROR",
   PROMISE_RACE_ERROR = "PROMISE_RACE_ERROR",
   SOCKET_ERROR = "SOCKET_ERROR",

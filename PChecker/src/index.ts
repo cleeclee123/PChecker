@@ -45,21 +45,19 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
 const proxyOptions = {
-  host: "107.1.93.216",
-  port: "80",
+  host: "192.241.238.167",
+  port: "31028",
   timeout: "10000",
-  publicIPAddress: "64.189.16.212",
-  runProxyLocation: true,
+  // runProxyLocation: true,
 } as PCheckerOptions;
 
 const p1 = new PChecker.PChecker(proxyOptions);
+
 let check1 = await p1.checkEssential();
 console.log(check1);
 
-
-
 //////////////////////////////////////////////////////////////
-// Test HTTP Requests 
+// Test HTTP Requests
 
 const httpReqCleanup = (reqObj: http.ClientRequest) => {
   reqObj.on("error", (error) => {
@@ -80,13 +78,12 @@ const httpReqCleanup = (reqObj: http.ClientRequest) => {
 async function testNewJudge() {
   return new Promise((resolve, reject) => {
     const reqOptions = {
-      host: "107.1.93.216",
-      port: 80,
-      path: "http://198.58.101.166:6969/azenv",
-      // path: "http://myproxyjudgeclee.software/pj-cleeclee123.php",
+      host: "198.58.101.166",
+      port: 6969,
+      path: "/",
       method: "GET",
       headers: {
-        Host: "198.58.101.166",
+        "Host": "198.58.101.166",
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
       },
