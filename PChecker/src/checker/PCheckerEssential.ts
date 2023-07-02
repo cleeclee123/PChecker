@@ -62,7 +62,7 @@ export class PCheckerEssential extends PCheckerBase {
 
           if (this.kFlaggedHeaderValuesSet.has(key)) {
             flaggedHeadersCount++;
-            toFlag.push(key)
+            toFlag.push(key);
             if (value === this.publicIPAddress_) {
               myPublicIPAddressCount++;
             }
@@ -321,11 +321,43 @@ export class PCheckerEssential extends PCheckerBase {
   }
 
   private async checkProxySiteSupport(
-    site:
-      | "https://google.com/"
-      | "https://finance.yahoo.com/"
-      | "https://www.google.com/finance/"
+    site: string
   ): Promise<ProxyInfoEssential> {
+    // chatgpt4 wrote this, idk regex
+    function isValidUrl(url: string): boolean {
+      let pattern = new RegExp(
+        "^(https?:\\/\\/)?" + // protocol
+          "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name and extension
+          "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+          "(\\:\\d+)?" + // port
+          "(\\/[-a-z\\d%_.~+]*)*" + // path
+          "(\\?[;&amp;a-z\\d%_.~+=-]*)?" + // query string
+          "(\\#[-a-z\\d_]*)?$",
+        "i"
+      ); // fragment locator
+      return !!pattern.test(url);
+    }
+
+    function extractDomains(url: string): string[] {
+      let domain: string;
+      if (url.indexOf("://") > -1) domain = url.split('/')[2];
+      else domain = url.split('/')[0];
+      
+      domain = domain.split(':')[0];
+      domain = domain.split('?')[0];
+
+      let domains: string[] = domain.split('.');
+      domains = domains.filter(e => e !== 'www' && e !== "com")
+      return domains;
+    }
+
+    function extractRoutes(url: string): string[] {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+      return pathname.split('/').filter(segment => segment !== '');
+    }
+
+    if (!isValidUrl(site)) throw new Error("Must be a valid URL");
     return new Promise<ProxyInfoEssential>((resolve) => {
       const proxyInfo = {} as ProxyInfoEssential;
       let tempState = false;
@@ -366,11 +398,10 @@ export class PCheckerEssential extends PCheckerBase {
             this.hasErrors_ = true;
             proxyInfo.errors = siteErrors;
           }
-          if (site === "https://finance.yahoo.com/")
-            proxyInfo.yahoofinanceSupport = tempState;
-          else if (site === "https://www.google.com/finance/")
-            proxyInfo.googleSupport = tempState;
-          else proxyInfo.googleFinanceSupport = tempState;
+
+          const newProp = (`${extractDomains(site).join("")}${extractRoutes(site).join("")}`) 
+          proxyInfo[newProp] = tempState;
+
           resolve(proxyInfo);
         });
       });
@@ -386,13 +417,10 @@ export class PCheckerEssential extends PCheckerBase {
           this.hasErrors_ = true;
           proxyInfo.errors = siteErrors;
         }
-        if (site === "https://finance.yahoo.com/")
-          proxyInfo.yahoofinanceSupport = tempState;
-        else if (site === "https://www.google.com/finance/")
-          proxyInfo.googleSupport = tempState;
-        else proxyInfo.googleFinanceSupport = tempState;
         this.logger_.info(`HTTP Request Object Closed ${site}`);
-
+        //const newProp = (`${extractDomains(site).toLocaleString()}${extractRoutes(site)}`) 
+        //proxyInfo[newProp] = tempState;
+      
         resolve(proxyInfo);
       });
 
@@ -515,26 +543,18 @@ export class PCheckerEssential extends PCheckerBase {
 
     // race between timeout and promises
     try {
-      let promises: Promise<ProxyInfoEssential>[];
+      let promises: Promise<ProxyInfoEssential>[] = [];
+      if (this.sitesToCheck_)
+        this.sitesToCheck_.forEach((site) => promises.push(this.checkProxySiteSupport(site)))
 
       // run location as default, also runs everything
       if (this.runProxyLocation_) {
-        promises = [
-          this.checkProxyAnonymityEssential(),
-          this.checkProxyHTTPS(),
-          this.checkProxySiteSupport("https://google.com/"),
-          this.checkProxySiteSupport("https://finance.yahoo.com/"),
-          this.checkProxySiteSupport("https://www.google.com/finance/"),
-          this.getProxyLocation(),
-        ];
+        promises.push(this.checkProxyAnonymityEssential())
+        promises.push(this.checkProxyHTTPS())
+        promises.push(this.getProxyLocation())
       } else {
-        promises = [
-          this.checkProxyAnonymityEssential(),
-          this.checkProxyHTTPS(),
-          this.checkProxySiteSupport("https://google.com/"),
-          this.checkProxySiteSupport("https://finance.yahoo.com/"),
-          this.checkProxySiteSupport("https://www.google.com/finance/"),
-        ];
+        promises.push(this.checkProxyAnonymityEssential())
+        promises.push(this.checkProxyHTTPS())
       }
 
       const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
@@ -563,7 +583,7 @@ export class PCheckerEssential extends PCheckerBase {
 
       const essentialInfo: ProxyInfoEssential = Object.assign(
         {},
-        ...validResults,
+        ...validResults
       );
       essentialInfo.proxyString = `${this.host_}:${this.port_}`;
       if (allErrors.length !== 0) essentialInfo.errors = allErrors;

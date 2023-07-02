@@ -102,9 +102,6 @@ export type ProxyInfoEssential = {
   anonymity?: ProxyAnonymityEnum | "";
   https?: boolean;
   httpConnectRes?: number;
-  googleSupport?: boolean;
-  googleFinanceSupport?: boolean;
-  yahoofinanceSupport?: boolean;
   countryCode?: string;
   errors?: string[];
   proxyString?: string;
@@ -112,6 +109,7 @@ export type ProxyInfoEssential = {
   judgeError?: ErrorsEnum.PROXY_JUDGE_ERROR;
   timeoutError?: ErrorsEnum.TIMEOUT;
   unknownError?: ErrorsEnum.UNKNOWN_ERROR;
+  [key: string]: any;
 };
 
 export type PCheckerOptions = {
@@ -122,4 +120,5 @@ export type PCheckerOptions = {
   username?: string;
   password?: string;
   runProxyLocation?: boolean;
+  sitesToCheck?: string[];
 };

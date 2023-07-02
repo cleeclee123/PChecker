@@ -18,6 +18,7 @@ export class PCheckerBase {
   protected agent_: http.Agent;
   protected publicIPAddress_: string;
   protected runProxyLocation_: boolean;
+  protected sitesToCheck_: string[];
   protected username_: string;
   protected password_: string;
   protected auth_: string;
@@ -77,6 +78,7 @@ export class PCheckerBase {
       this.username_ = pcheckerOptions.username;
       this.password_ = pcheckerOptions.password;
       this.runProxyLocation_ = pcheckerOptions.runProxyLocation;
+      this.sitesToCheck_ = pcheckerOptions.sitesToCheck;
 
       (pcheckerOptions.username !== undefined &&
         pcheckerOptions.password !== undefined) ||
