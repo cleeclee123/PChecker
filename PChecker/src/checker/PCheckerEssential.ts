@@ -27,13 +27,14 @@ export class PCheckerEssential extends PCheckerBase {
     proxyInfo: ProxyInfoEssential,
     errors: string[]
   ): void {
-    try {
-      const headers = JSON.parse(Buffer.concat(body).toString());
-      this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
+    let headers: JSON | string[];
+    let myPublicIPAddressCount = 0;
+    let flaggedHeadersCount = 0;
+    const toFlag: any[] = [];
 
-      let myPublicIPAddressCount = 0;
-      let flaggedHeadersCount = 0;
-      const toFlag: any[] = [];
+    try {
+      headers = JSON.parse(Buffer.concat(body).toString()) as JSON;
+      this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
 
       for (const key of Object.keys(headers)) {
         if (this.kFlaggedHeaderValuesSet.has(key)) {
@@ -44,27 +45,51 @@ export class PCheckerEssential extends PCheckerBase {
           toFlag.push(key);
         }
       }
-
-      // check if flagged header properties exist
-      proxyInfo.anonymity =
-        flaggedHeadersCount === 0
-          ? ProxyAnonymityEnum.Elite
-          : ProxyAnonymityEnum.Anonymous;
-
-      // check if public ip is shown
-      proxyInfo.anonymity =
-        myPublicIPAddressCount === 0
-          ? ProxyAnonymityEnum.Anonymous
-          : ProxyAnonymityEnum.Transparent;
-
-      this.logger_.info(`flagged header properties: ${toFlag}`);
     } catch (error) {
-      proxyInfo.anonymity = undefined;
-      this.hasErrors_ = true;
-      errors.push(
-        customEnumError("ANONYMITY_CHECK", ErrorsEnum.JSON_PARSE_ERROR)
-      );
-      this.logger_.error(`checkProxyAnonymity JSON parse error: ${error}`);
+      if (error instanceof SyntaxError) {
+        this.logger_.warn("checkProxyAnonymity response is not JSON");
+
+        // proxy judge still sends a valid response but not in json
+        // mostly will be each header properties on a new line
+        headers = Buffer.concat(body).toString().split("\n");
+        this.logger_.info(headers);
+
+        // most likely shape of line: "header prop = prop value"
+        for (const line of headers) {
+          if (!line) continue;
+          const key = line.split("=")[0].trim().toLowerCase().replace("_", "-");
+          const value = line.split("=")[1].trim().toLowerCase();
+
+          if (this.kFlaggedHeaderValuesSet.has(key)) {
+            flaggedHeadersCount++;
+            toFlag.push(key)
+            if (value === this.publicIPAddress_) {
+              myPublicIPAddressCount++;
+            }
+          }
+        }
+
+        // check if flagged header properties exist
+        proxyInfo.anonymity =
+          flaggedHeadersCount === 0
+            ? ProxyAnonymityEnum.Elite
+            : ProxyAnonymityEnum.Anonymous;
+
+        // check if public ip is shown
+        proxyInfo.anonymity =
+          myPublicIPAddressCount === 0
+            ? ProxyAnonymityEnum.Anonymous
+            : ProxyAnonymityEnum.Transparent;
+
+        this.logger_.info(`flagged header properties: ${toFlag}`);
+      } else {
+        proxyInfo.anonymity = undefined;
+        this.hasErrors_ = true;
+        errors.push(
+          customEnumError("ANONYMITY_CHECK", ErrorsEnum.PROXY_JUDGE_ERROR)
+        );
+        this.logger_.error(`checkProxyAnonymity parse error: ${error}`);
+      }
     }
   }
 
@@ -151,7 +176,7 @@ export class PCheckerEssential extends PCheckerBase {
               ) !== -1
             ) {
               reject({
-                error: ErrorsEnum.PROXY_JUDGE_ERROR,
+                judgeError: ErrorsEnum.PROXY_JUDGE_ERROR,
               } as ProxyInfoEssential);
             }
             resolve(proxyInfo);
@@ -296,13 +321,16 @@ export class PCheckerEssential extends PCheckerBase {
   }
 
   private async checkProxySiteSupport(
-    site: string
+    site:
+      | "https://google.com/"
+      | "https://finance.yahoo.com/"
+      | "https://www.google.com/finance/"
   ): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>((resolve) => {
       const proxyInfo = {} as ProxyInfoEssential;
-      proxyInfo.googleSupport = false;
+      let tempState = false;
 
-      const googleErrors: string[] = [];
+      const siteErrors: string[] = [];
       const startTime = new Date().getTime();
 
       const googleOptions = {
@@ -318,13 +346,13 @@ export class PCheckerEssential extends PCheckerBase {
       };
       const httpProxyRequestObject = http.get(googleOptions, (res) => {
         if (res.statusCode === 200) {
-          proxyInfo.googleSupport = true;
-          this.logger_.error(`google check status code: ${res.statusCode}`);
+          tempState = true;
+          this.logger_.info(`${site} check status code: ${res.statusCode}`);
           res.destroy();
         }
 
         res.on("error", () => {
-          googleErrors.push(
+          siteErrors.push(
             customEnumError(`${site}_CHECK`, ErrorsEnum.SOCKET_ERROR)
           );
           res.destroy();
@@ -332,31 +360,38 @@ export class PCheckerEssential extends PCheckerBase {
 
         res.on("close", () => {
           this.logger_.info(
-            `GOOGLE_CHECK RES TIME: ${new Date().getTime() - startTime}`
+            `${site} RES TIME: ${new Date().getTime() - startTime}`
           );
-          if (googleErrors.length !== 0) {
+          if (siteErrors.length !== 0) {
             this.hasErrors_ = true;
-            proxyInfo.errors = googleErrors;
+            proxyInfo.errors = siteErrors;
           }
-
+          if (site === "https://finance.yahoo.com/")
+            proxyInfo.yahoofinanceSupport = tempState;
+          else if (site === "https://www.google.com/finance/")
+            proxyInfo.googleSupport = tempState;
+          else proxyInfo.googleFinanceSupport = tempState;
           resolve(proxyInfo);
         });
       });
 
       httpProxyRequestObject.on("error", (error) => {
-        this.logger_.error(`GOOGLE_CHECK socket error: ${error}`);
-        googleErrors.push(
-          customEnumError("GOOGLE_CHECK", ErrorsEnum.SOCKET_ERROR)
-        );
+        this.logger_.error(`${site}_CHECK socket error: ${error}`);
+        siteErrors.push(customEnumError(site, ErrorsEnum.SOCKET_ERROR));
         httpProxyRequestObject.destroy();
       });
 
       httpProxyRequestObject.on("close", () => {
-        if (googleErrors.length !== 0) {
+        if (siteErrors.length !== 0) {
           this.hasErrors_ = true;
-          proxyInfo.errors = googleErrors;
+          proxyInfo.errors = siteErrors;
         }
-        this.logger_.info("HTTP Request Object Closed (GOOGLE_CHECK)");
+        if (site === "https://finance.yahoo.com/")
+          proxyInfo.yahoofinanceSupport = tempState;
+        else if (site === "https://www.google.com/finance/")
+          proxyInfo.googleSupport = tempState;
+        else proxyInfo.googleFinanceSupport = tempState;
+        this.logger_.info(`HTTP Request Object Closed ${site}`);
 
         resolve(proxyInfo);
       });
@@ -482,21 +517,23 @@ export class PCheckerEssential extends PCheckerBase {
     try {
       let promises: Promise<ProxyInfoEssential>[];
 
-      // run location as default
+      // run location as default, also runs everything
       if (this.runProxyLocation_) {
         promises = [
           this.checkProxyAnonymityEssential(),
           this.checkProxyHTTPS(),
           this.checkProxySiteSupport("https://google.com/"),
           this.checkProxySiteSupport("https://finance.yahoo.com/"),
+          this.checkProxySiteSupport("https://www.google.com/finance/"),
           this.getProxyLocation(),
         ];
       } else {
         promises = [
           this.checkProxyAnonymityEssential(),
           this.checkProxyHTTPS(),
-          this.checkProxySiteSupport("https://google,com/"),
+          this.checkProxySiteSupport("https://google.com/"),
           this.checkProxySiteSupport("https://finance.yahoo.com/"),
+          this.checkProxySiteSupport("https://www.google.com/finance/"),
         ];
       }
 
@@ -526,9 +563,7 @@ export class PCheckerEssential extends PCheckerBase {
 
       const essentialInfo: ProxyInfoEssential = Object.assign(
         {},
-        validResults[0],
-        validResults[1],
-        validResults[2]
+        ...validResults,
       );
       essentialInfo.proxyString = `${this.host_}:${this.port_}`;
       if (allErrors.length !== 0) essentialInfo.errors = allErrors;

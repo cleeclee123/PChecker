@@ -44,6 +44,7 @@ export class PCheckerBase {
     "proxy-authorization",
     "proxy-connection",
     "remote-addr",
+    "remote-port",
     "via",
     "forwarded",
     "forwarded-for",
