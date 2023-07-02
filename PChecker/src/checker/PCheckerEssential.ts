@@ -98,10 +98,11 @@ export class PCheckerEssential extends PCheckerBase {
       const httpProxyRequestObject = http.get(
         this.optionspjExpressApp_,
         (res) => {
-          this.logger_.error(
+          this.logger_.info(
             `checkProxyAnonymity status code: ${res.statusCode}`
           );
           if (res.statusCode !== 200) {
+            this.hasErrors_ = true;
             anonymityErrors.push(
               customEnumError("ANONYMITY_CHECK", ErrorsEnum.STATUS_CODE_ERROR)
             );
@@ -120,9 +121,7 @@ export class PCheckerEssential extends PCheckerBase {
               anonymityErrors.push(
                 customEnumError("ANONYMITY_CHECK", ErrorsEnum.PROXY_JUDGE_ERROR)
               );
-              this.logger_.error(
-                "PROXY JUDGE NO RESPONSE"
-              );
+              this.logger_.error("PROXY JUDGE NO RESPONSE");
               res.destroy();
             }
             this.parseHeaders(body, proxyInfo, anonymityErrors);
@@ -145,16 +144,16 @@ export class PCheckerEssential extends PCheckerBase {
             }
 
             // the proxy judge is expected to work
+            // if proxy cant/fails to connect to judge, then auto reject
             if (
               anonymityErrors.indexOf(
                 `ANONYMITY_CHECK_${ErrorsEnum.STATUS_CODE_ERROR}`
               ) !== -1
             ) {
               reject({
-                judgeError: ErrorsEnum.PROXY_JUDGE_ERROR,
+                error: ErrorsEnum.PROXY_JUDGE_ERROR,
               } as ProxyInfoEssential);
             }
-
             resolve(proxyInfo);
           });
         }
@@ -284,21 +283,10 @@ export class PCheckerEssential extends PCheckerBase {
 
           // parse status code from response
           statusCode = String(+response.split(" ")[1]);
-
-          // 403 status code may hint at https support with auth
-          // 500 status code may hint at https support
           this.logger_.info(`checkProxyHTTPS statusCode: ${statusCode}`);
-          if (statusCode === "403" || statusCode === "401")
-            this.logger_.warn(`auth may be required`);
-          else if (statusCode[0] === "4")
-            this.logger_.warn(`not support generally`);
-          else if (statusCode[0] === "5")
-            this.logger_.warn(`proxy server error, probably no https support`);
 
-          // check if digit of status code from CONNECT request
-          if (statusCode[0] === "2") proxyInfo.https = true;
+          if (statusCode === "200") proxyInfo.https = true;
           else proxyInfo.https = false;
-
           this.socketEssential_.destroy();
         });
       };
@@ -307,7 +295,9 @@ export class PCheckerEssential extends PCheckerBase {
     });
   }
 
-  private async checkProxyGoogleSupport(): Promise<ProxyInfoEssential> {
+  private async checkProxySiteSupport(
+    site: string
+  ): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>((resolve) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.googleSupport = false;
@@ -318,7 +308,7 @@ export class PCheckerEssential extends PCheckerBase {
       const googleOptions = {
         host: this.host_,
         port: Number(this.port_),
-        path: "http://www.google.com/",
+        path: site,
         headers: {
           "User-Agent":
             PCheckerEssential.kUserAgents[
@@ -335,7 +325,7 @@ export class PCheckerEssential extends PCheckerBase {
 
         res.on("error", () => {
           googleErrors.push(
-            customEnumError("GOOGLE_CHECK", ErrorsEnum.SOCKET_ERROR)
+            customEnumError(`${site}_CHECK`, ErrorsEnum.SOCKET_ERROR)
           );
           res.destroy();
         });
@@ -497,14 +487,16 @@ export class PCheckerEssential extends PCheckerBase {
         promises = [
           this.checkProxyAnonymityEssential(),
           this.checkProxyHTTPS(),
-          this.checkProxyGoogleSupport(),
+          this.checkProxySiteSupport("https://google.com/"),
+          this.checkProxySiteSupport("https://finance.yahoo.com/"),
           this.getProxyLocation(),
         ];
       } else {
         promises = [
           this.checkProxyAnonymityEssential(),
           this.checkProxyHTTPS(),
-          this.checkProxyGoogleSupport(),
+          this.checkProxySiteSupport("https://google,com/"),
+          this.checkProxySiteSupport("https://finance.yahoo.com/"),
         ];
       }
 
@@ -543,8 +535,15 @@ export class PCheckerEssential extends PCheckerBase {
       else delete essentialInfo.errors;
 
       return essentialInfo;
-
     } catch (error: any) {
+      if (error.hasOwnProperty("judgeError")) {
+        this.logger_.error("Proxy Judge Error");
+        return {
+          error: error["judgeError"],
+          proxyString: `${this.host_}:${this.port_}`,
+        } as ProxyInfoEssential;
+      }
+
       return {
         unknownError: error,
         proxyString: `${this.host_}:${this.port_}`,
