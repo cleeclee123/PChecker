@@ -406,15 +406,14 @@ export class PCheckerEssential extends PCheckerBase {
           res.destroy();
         }
 
-        res.setEncoding("utf8");
-        let responseData = [] as string[];
+        let body = [] as any[];
         res.on("data", (data) => {
-          responseData.push(data);
+          body.push(data);
         });
 
         res.on("end", () => {
           try {
-            const json: any = JSON.parse(responseData.join(""));
+            const json = JSON.parse(Buffer.concat(body).toString());
             if (json.hasOwnProperty("countryCode")) {
               proxyInfo.countryCode = json.countryCode;
               res.destroy();
