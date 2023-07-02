@@ -399,7 +399,7 @@ export class PCheckerEssential extends PCheckerBase {
             proxyInfo.errors = siteErrors;
           }
 
-          const newProp = (`${extractDomains(site).join("")}${extractRoutes(site).join("")}`) 
+          const newProp = (`${extractDomains(site).join("")}${extractRoutes(site).join("")}_support`) 
           proxyInfo[newProp] = tempState;
 
           resolve(proxyInfo);
