@@ -98,7 +98,7 @@ export type DNSResponseServer = {
 };
 
 export type ProxyInfoEssential = {
-  judgeServerRes?: number;
+  checkAnonymityTime?: number;
   anonymity?: ProxyAnonymityEnum | "";
   https?: boolean;
   httpConnectRes?: number;

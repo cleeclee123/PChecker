@@ -37,31 +37,6 @@ export class PChecker extends PCheckerMixin {
     super(pcheckerOptions);
   }
 
-  /**
-   * @method: checkAnonymity()
-   * @returns Promise<ProxyInfoFromHttp | ProxyError>
-   * runs anomnity check
-   */
-  public async checkAnonymity(): Promise<ProxyInfoFromHttp | ProxyError> {
-    this.nullChecks();
-    const anomnityStatus = await this.checkProxyAnonymity();
-    this.clearTimeouts();
-
-    return anomnityStatus;
-  }
-
-  /**
-   * @method: checkHTTPS()
-   * @returns Promise<ProxyInfoFromHttp | ProxyError>
-   * runs https support check
-   */
-  public async checkHTTPS(): Promise<ProxyInfoFromHttps | ProxyError> {
-    this.nullChecks();
-    const httpsStatus = await this.checkProxyHTTPSSupport();
-    this.clearTimeouts();
-
-    return httpsStatus;
-  }
 
   /**
    * @method: checkContent()
@@ -87,19 +62,6 @@ export class PChecker extends PCheckerMixin {
     this.clearTimeouts();
 
     return dnsLeakCheck;
-  }
-
-  /**
-   * @method: checkLocation()
-   * @returns Promise<ProxyLocation | ProxyError>
-   * fetch proxy location from ip-api.com
-   */
-  public async checkLocation(): Promise<ProxyLocation | ProxyError> {
-    this.nullChecks();
-    const geolocation = await this.checkProxyLocation();
-    this.clearTimeouts();
-
-    return geolocation;
   }
 
   /**
@@ -158,11 +120,8 @@ export class PChecker extends PCheckerMixin {
   public async checkAll(): Promise<any> {
     this.nullChecks();
     const all = await Promise.all([
-      this.checkProxyAnonymity(),
-      this.checkProxyHTTPSSupport(),
       this.checkProxyContent(),
       this.checkProxyDNSLeak(),
-      this.checkProxyLocation(),
       this.checkProxyWebRTCLeak(),
     ]);
     this.clearTimeouts();

@@ -4,7 +4,12 @@ import http from "http";
 import net from "net";
 import { PCheckerBase } from "./PCheckerBase.js";
 import { ProxyInfoEssential, PCheckerOptions } from "./types.js";
-import { ProxyAnonymityEnum, ErrorsEnum, customEnumError } from "./emuns.js";
+import {
+  ProxyAnonymityEnum,
+  ErrorsEnum,
+  PCheckerErrors,
+  customEnumError,
+} from "./emuns.js";
 
 /**
  * @todo:
@@ -21,28 +26,38 @@ export class PCheckerEssential extends PCheckerBase {
     this.hasErrors_ = false;
   }
 
-  // seperate to test
-  private parseHeaders(
-    body: any[],
+  private handleErrors(
     proxyInfo: ProxyInfoEssential,
-    errors: string[]
-  ): void {
+    logMessage: string,
+    errorType: PCheckerErrors,
+    errorEnum: ErrorsEnum
+  ) {
+    this.hasErrors_ = true;
+    proxyInfo.errors.push(customEnumError(errorType, errorEnum));
+    this.logger_.error(logMessage);
+  }
+
+  // seperate to test
+  private parseHeaders(body: any[], proxyInfo: ProxyInfoEssential): void {
     let headers: JSON | string[];
     let myPublicIPAddressCount = 0;
     let flaggedHeadersCount = 0;
     const toFlag: any[] = [];
 
     try {
+      // no need to try JSON parse if content is not JSON
+      if (proxyInfo.notJSONFlag) throw new SyntaxError();
+
       headers = JSON.parse(Buffer.concat(body).toString()) as JSON;
       this.logger_.info(`pj res: ${JSON.stringify(headers)}`);
 
       for (const key of Object.keys(headers)) {
         if (this.kFlaggedHeaderValuesSet.has(key)) {
           flaggedHeadersCount++;
+          toFlag.push(key);
           if (String(headers[key as keyof JSON]) === this.publicIPAddress_) {
             myPublicIPAddressCount++;
           }
-          toFlag.push(key);
         }
       }
     } catch (error) {
@@ -68,28 +83,30 @@ export class PCheckerEssential extends PCheckerBase {
             }
           }
         }
-
-        // check if flagged header properties exist
-        proxyInfo.anonymity =
-          flaggedHeadersCount === 0
-            ? ProxyAnonymityEnum.Elite
-            : ProxyAnonymityEnum.Anonymous;
-
-        // check if public ip is shown
-        proxyInfo.anonymity =
-          myPublicIPAddressCount === 0
-            ? ProxyAnonymityEnum.Anonymous
-            : ProxyAnonymityEnum.Transparent;
-
-        this.logger_.info(`flagged header properties: ${toFlag}`);
       } else {
         proxyInfo.anonymity = undefined;
-        this.hasErrors_ = true;
-        errors.push(
-          customEnumError("ANONYMITY_CHECK", ErrorsEnum.PROXY_JUDGE_ERROR)
+        this.handleErrors(
+          proxyInfo,
+          `checkProxyAnonymity final parse error: ${error}`,
+          PCheckerErrors.checkAnonymityError,
+          ErrorsEnum.PROXY_JUDGE_ERROR
         );
-        this.logger_.error(`checkProxyAnonymity parse error: ${error}`);
       }
+    }
+
+    // check if flagged header properties exist
+    proxyInfo.anonymity =
+      flaggedHeadersCount === 0
+        ? ProxyAnonymityEnum.Elite
+        : ProxyAnonymityEnum.Anonymous;
+
+    if (flaggedHeadersCount > 0) {
+      // check if public ip is shown
+      proxyInfo.anonymity =
+        myPublicIPAddressCount === 0
+          ? ProxyAnonymityEnum.Anonymous
+          : ProxyAnonymityEnum.Transparent;
+      this.logger_.info(`flagged header properties: ${toFlag}`);
     }
   }
 
@@ -97,8 +114,9 @@ export class PCheckerEssential extends PCheckerBase {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.anonymity = ProxyAnonymityEnum.Unknown;
+      proxyInfo.errors = [] as string[];
+      proxyInfo.notJSONFlag = false;
 
-      const anonymityErrors: string[] = [];
       const startTime = new Date().getTime();
 
       // checks if public ip address is already pass in, gets IP of client
@@ -107,13 +125,11 @@ export class PCheckerEssential extends PCheckerBase {
 
         if (tempPublicIP.hasOwnProperty("error")) {
           this.logger_.error(`checkProxyAnonymityEssential getPublicIP error`);
-          proxyInfo.errors = [
-            customEnumError(
-              "ANONYMITY_CHECK",
-              ErrorsEnum.PUBLIC_IP_ADDRESS_ERROR
-            ),
-          ];
-          resolve(proxyInfo);
+          reject({
+            [PCheckerErrors.checkAnonymityError]:
+              ErrorsEnum.PUBLIC_IP_ADDRESS_ERROR,
+          });
+          return;
         } else {
           this.publicIPAddress_ = String(tempPublicIP);
           this.logger_.info(`public ip address: ${this.publicIPAddress_}`);
@@ -123,80 +139,132 @@ export class PCheckerEssential extends PCheckerBase {
       const httpProxyRequestObject = http.get(
         this.optionspjExpressApp_,
         (res) => {
+          const { statusCode } = res;
           this.logger_.info(
             `checkProxyAnonymity status code: ${res.statusCode}`
           );
-          if (res.statusCode !== 200) {
-            this.hasErrors_ = true;
-            anonymityErrors.push(
-              customEnumError("ANONYMITY_CHECK", ErrorsEnum.STATUS_CODE_ERROR)
+          let contentType = res.headers["content-type"];
+
+          if (statusCode !== 200) {
+            this.handleErrors(
+              proxyInfo,
+              `checkProxyAnonymity: Bad Status Code`,
+              PCheckerErrors.checkAnonymityError,
+              ErrorsEnum.STATUS_CODE_ERROR
             );
-            res.destroy();
+
+            res.resume();
+            reject({
+              [PCheckerErrors.checkAnonymityError]:
+                ErrorsEnum.STATUS_CODE_ERROR,
+            });
+            return;
+          } else if (!/^application\/json/.test(contentType!.split(";")[0])) {
+            this.logger_.warn(`checkProxyAnonymity content type is not JSON`);
+            proxyInfo.notJSONFlag = true;
           }
 
           // push data into buffer
-          let body = [] as any[];
-          res.on("data", (chunk) => {
-            body.push(chunk);
-          });
+          const body = [] as Buffer[];
+          res.on("data", (chunk: Buffer) => body.push(chunk));
 
           // done buffering response
           res.on("end", () => {
+            this.logger_.info(
+              `checkProxyAnonymity proxy judge (network) response: ${
+                new Date().getTime() - startTime
+              }`
+            );
+
+            // empty response, something went wrong
             if (body.length === 0) {
-              anonymityErrors.push(
-                customEnumError("ANONYMITY_CHECK", ErrorsEnum.PROXY_JUDGE_ERROR)
+              this.handleErrors(
+                proxyInfo,
+                `checkProxyAnonymity: Bad Status Code`,
+                PCheckerErrors.checkAnonymityError,
+                ErrorsEnum.EMPTY_RESPONSE
               );
-              this.logger_.error("PROXY JUDGE NO RESPONSE");
+
+              // at this point, already have read all data, free up all resources
+              res.destroy();
+              reject({
+                [PCheckerErrors.checkAnonymityError]: ErrorsEnum.EMPTY_RESPONSE,
+              });
+              return;
+            }
+
+            // parseHeaders will modify anonymity rating and anonymityErrors
+            this.parseHeaders(body, proxyInfo);
+
+            // parse error, handle in "close" event
+            if (!proxyInfo.anonymity || proxyInfo.errors.length > 0) {
+              res.destroy();
+              reject({
+                [PCheckerErrors.checkAnonymityError]: ErrorsEnum.PARSE_ERROR,
+              });
+              return;
+            } else {
               res.destroy();
             }
-            this.parseHeaders(body, proxyInfo, anonymityErrors);
-            res.destroy();
           });
 
-          res.on("error", (error) => {
-            anonymityErrors.push(
-              customEnumError("ANONYMITY_CHECK", ErrorsEnum.SOCKET_ERROR)
+          res.on("error", () => {
+            this.handleErrors(
+              proxyInfo,
+              `checkProxyAnonymity: Socket Error`,
+              PCheckerErrors.checkAnonymityError,
+              ErrorsEnum.SOCKET_ERROR
             );
-            this.logger_.error(`checkProxyAnonymity socket error: ${error}`);
-            res.destroy();
+
+            reject({
+              [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
+            });
+            return;
           });
 
           res.on("close", () => {
-            proxyInfo.judgeServerRes = new Date().getTime() - startTime;
-            if (anonymityErrors.length !== 0) {
+            // further error handling here, handle any error we didnt handle
+            proxyInfo.checkAnonymityTime = new Date().getTime() - startTime;
+            if (
+              proxyInfo.errors.length > 0 &&
+              !this.hasErrors_ &&
+              proxyInfo.errors
+            ) {
               this.hasErrors_ = true;
-              proxyInfo.errors = anonymityErrors;
+              reject({
+                [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
+              });
+              return;
             }
 
-            // the proxy judge is expected to work
-            // if proxy cant/fails to connect to judge, then auto reject
-            if (
-              anonymityErrors.indexOf(
-                `ANONYMITY_CHECK_${ErrorsEnum.STATUS_CODE_ERROR}`
-              ) !== -1
-            ) {
-              reject({
-                judgeError: ErrorsEnum.PROXY_JUDGE_ERROR,
-              } as ProxyInfoEssential);
-            }
             resolve(proxyInfo);
           });
         }
       );
 
       httpProxyRequestObject.on("error", (error) => {
-        this.logger_.error(`ANONYMITY_CHECK socket error: ${error}`);
-        anonymityErrors.push(
-          customEnumError("ANONYMITY_CHECK", ErrorsEnum.SOCKET_ERROR)
+        this.handleErrors(
+          proxyInfo,
+          `ANONYMITY_CHECK socket error: ${error}`,
+          PCheckerErrors.checkAnonymityError,
+          ErrorsEnum.SOCKET_HANG_UP
         );
-        httpProxyRequestObject.destroy();
+
+        reject({
+          [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
+        });
+        return;
       });
 
+      // handle socket error here
       httpProxyRequestObject.on("close", () => {
-        if (anonymityErrors.length !== 0) {
+        // further error handling here, handle any error we didnt handle
+        if (proxyInfo.errors.length > 0 && !this.hasErrors_) {
           this.hasErrors_ = true;
-          proxyInfo.errors = anonymityErrors;
-          resolve(proxyInfo);
+
+          reject({
+            [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_HANG_UP,
+          });
         }
         this.logger_.info("HTTP Request Object Closed (ANONYMITY_CHECK)");
       });
@@ -252,7 +320,7 @@ export class PCheckerEssential extends PCheckerBase {
             response === undefined ||
             statusCode === undefined
           ) {
-            proxyInfo.https = undefined;
+            proxyInfo.https = false;
           }
 
           // 204 (No Content) status code indicates that the server has successfully
@@ -299,9 +367,7 @@ export class PCheckerEssential extends PCheckerBase {
           const endOfHeaders = buffered.indexOf("\r\n\r\n");
 
           // will contine to buffer
-          if (endOfHeaders === -1) {
-            return;
-          }
+          if (endOfHeaders === -1) return;
 
           // parse actual response, usually something like: "HTTP/1.1 200 Connection established"
           response = buffered.toString("ascii", 0, buffered.indexOf("\r\n"));
@@ -312,6 +378,7 @@ export class PCheckerEssential extends PCheckerBase {
 
           if (statusCode === "200") proxyInfo.https = true;
           else proxyInfo.https = false;
+
           this.socketEssential_.destroy();
         });
       };
@@ -340,21 +407,23 @@ export class PCheckerEssential extends PCheckerBase {
 
     function extractDomains(url: string): string[] {
       let domain: string;
-      if (url.indexOf("://") > -1) domain = url.split('/')[2];
-      else domain = url.split('/')[0];
-      
-      domain = domain.split(':')[0];
-      domain = domain.split('?')[0];
+      if (url.indexOf("://") > -1) domain = url.split("/")[2];
+      else domain = url.split("/")[0];
 
-      let domains: string[] = domain.split('.');
-      domains = domains.filter(e => e !== 'www' && e !== "com")
+      domain = domain.split(":")[0];
+      domain = domain.split("?")[0];
+
+      let domains: string[] = domain.split(".");
+      domains = domains.filter((e) => e !== "www" && e !== "com");
       return domains;
     }
 
     function extractRoutes(url: string): string[] {
       const urlObj = new URL(url);
-      const pathname = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
-      return pathname.split('/').filter(segment => segment !== '');
+      const pathname = urlObj.pathname.startsWith("/")
+        ? urlObj.pathname.slice(1)
+        : urlObj.pathname;
+      return pathname.split("/").filter((segment) => segment !== "");
     }
 
     if (!isValidUrl(site)) throw new Error("Must be a valid URL");
@@ -399,7 +468,9 @@ export class PCheckerEssential extends PCheckerBase {
             proxyInfo.errors = siteErrors;
           }
 
-          const newProp = (`${extractDomains(site).join("")}${extractRoutes(site).join("")}_support`) 
+          const newProp = `${extractDomains(site).join("")}${extractRoutes(
+            site
+          ).join("")}_support`;
           proxyInfo[newProp] = tempState;
 
           resolve(proxyInfo);
@@ -418,9 +489,9 @@ export class PCheckerEssential extends PCheckerBase {
           proxyInfo.errors = siteErrors;
         }
         this.logger_.info(`HTTP Request Object Closed ${site}`);
-        //const newProp = (`${extractDomains(site).toLocaleString()}${extractRoutes(site)}`) 
+        //const newProp = (`${extractDomains(site).toLocaleString()}${extractRoutes(site)}`)
         //proxyInfo[newProp] = tempState;
-      
+
         resolve(proxyInfo);
       });
 
@@ -545,16 +616,18 @@ export class PCheckerEssential extends PCheckerBase {
     try {
       let promises: Promise<ProxyInfoEssential>[] = [];
       if (this.sitesToCheck_)
-        this.sitesToCheck_.forEach((site) => promises.push(this.checkProxySiteSupport(site)))
+        this.sitesToCheck_.forEach((site) =>
+          promises.push(this.checkProxySiteSupport(site))
+        );
 
       // run location as default, also runs everything
       if (this.runProxyLocation_) {
-        promises.push(this.checkProxyAnonymityEssential())
-        promises.push(this.checkProxyHTTPS())
-        promises.push(this.getProxyLocation())
+        promises.push(this.checkProxyAnonymityEssential());
+        promises.push(this.checkProxyHTTPS());
+        promises.push(this.getProxyLocation());
       } else {
-        promises.push(this.checkProxyAnonymityEssential())
-        promises.push(this.checkProxyHTTPS())
+        promises.push(this.checkProxyAnonymityEssential());
+        promises.push(this.checkProxyHTTPS());
       }
 
       const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
@@ -591,10 +664,11 @@ export class PCheckerEssential extends PCheckerBase {
 
       return essentialInfo;
     } catch (error: any) {
-      if (error.hasOwnProperty("judgeError")) {
-        this.logger_.error("Proxy Judge Error");
+      console.log(error);
+      if (error.hasOwnProperty(PCheckerErrors.checkAnonymityError)) {
+        this.logger_.error("Error with Anonymity Check");
         return {
-          error: error["judgeError"],
+          error: error[PCheckerErrors.checkAnonymityError],
           proxyString: `${this.host_}:${this.port_}`,
         } as ProxyInfoEssential;
       }

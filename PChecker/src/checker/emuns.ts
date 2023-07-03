@@ -32,6 +32,7 @@ export enum ErrorsEnum {
   CONNECTION_ERROR = "CONNECTION_ERROR",
   STATUS_CODE_ERROR = "NON_200_STATUS_CODE",
   JSON_PARSE_ERROR = "JSON_PARSE_ERROR",
+  PARSE_ERROR = "PARSE_ERROR",
   PROMISE_RACE_ERROR = "PROMISE_RACE_ERROR",
   SOCKET_ERROR = "SOCKET_ERROR",
   EMPTY_SOCKET_RESPONSE = "EMPTY_RESPONSE",
@@ -44,6 +45,14 @@ export enum ErrorsEnum {
   PROXY_JUDGE_EMPTY_RESPONSE = "PROXY_JUDGE_EMPTY_RESPONSE",
   TIMEOUT = "TIMEOUT",
   UNKNOWN_ERROR = "UNKNOWN_ERROR",
+  EMPTY_RESPONSE = "EMPTY_RESPONSE",
+  BAD_CONTENT = "BAD_CONTENT",
+  BAD_RESPONSE = "BAD_RESPONSE"
+}
+
+export enum PCheckerErrors {
+  getPublicIPError = "getPublicIPError",
+  checkAnonymityError = "checkAnonymityError"
 }
 
 export const customEnumError = (customMessage: string, error: ErrorsEnum) => {
