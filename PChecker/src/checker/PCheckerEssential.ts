@@ -207,7 +207,7 @@ export class PCheckerEssential extends PCheckerBase {
               res.destroy();
               resolve(proxyInfo);
               return;
-            } 
+            }
           });
 
           res.on("close", () => {
@@ -439,15 +439,19 @@ export class PCheckerEssential extends PCheckerBase {
       return pathname.split("/").filter((segment) => segment !== "");
     }
 
-    if (!isValidUrl(site)) throw new Error("Must be a valid URL");
-    return new Promise<ProxyInfoEssential>((resolve) => {
-      const proxyInfo = {} as ProxyInfoEssential;
-      let tempState = false;
+    if (!isValidUrl(site)) {
+      this.logger_.error(`${site} is not a valid url`);
+      throw { [PCheckerErrors.siteCheckError]: ErrorsEnum.BAD_URL_FORMAT };
+    }
 
-      const siteErrors: string[] = [];
+    return new Promise<ProxyInfoEssential>((resolve, reject) => {
+      const proxyInfo = {} as ProxyInfoEssential;
+      proxyInfo.errors = [] as string[];
+
+      let sucessResponse: boolean = undefined;
       const startTime = new Date().getTime();
 
-      const googleOptions = {
+      const reqOptions = {
         host: this.host_,
         port: Number(this.port_),
         path: site,
@@ -458,54 +462,56 @@ export class PCheckerEssential extends PCheckerBase {
             ],
         },
       };
-      const httpProxyRequestObject = http.get(googleOptions, (res) => {
-        if (res.statusCode === 200) {
-          tempState = true;
-          this.logger_.info(`${site} check status code: ${res.statusCode}`);
-          res.destroy();
-        }
 
-        res.on("error", () => {
-          siteErrors.push(
-            customEnumError(`${site}_CHECK`, ErrorsEnum.SOCKET_ERROR)
-          );
-          res.destroy();
-        });
+      const httpProxyRequestObject = http.get(reqOptions, (res) => {
+        this.logger_.info(`${site} check status code: ${res.statusCode}`);
+        if (res.statusCode === 200) {
+          sucessResponse = true;
+        } else {
+          sucessResponse = false;
+        }
+        res.destroy();
 
         res.on("close", () => {
           this.logger_.info(
             `${site} RES TIME: ${new Date().getTime() - startTime}`
           );
-          if (siteErrors.length !== 0) {
-            this.hasErrors_ = true;
-            proxyInfo.errors = siteErrors;
-          }
 
           const newProp = `${extractDomains(site).join("")}${extractRoutes(
             site
           ).join("")}_support`;
-          proxyInfo[newProp] = tempState;
-
           resolve(proxyInfo);
+        });
+
+        res.on("error", (error) => {
+          this.handleErrors(
+            proxyInfo,
+            `ANONYMITY_CHECK socket error: ${error}`,
+            PCheckerErrors.siteCheckError,
+            ErrorsEnum.SOCKET_ERROR
+          );
+
+          reject({
+            [PCheckerErrors.siteCheckError]: ErrorsEnum.SOCKET_ERROR,
+          });
         });
       });
 
       httpProxyRequestObject.on("error", (error) => {
-        this.logger_.error(`${site}_CHECK socket error: ${error}`);
-        siteErrors.push(customEnumError(site, ErrorsEnum.SOCKET_ERROR));
-        httpProxyRequestObject.destroy();
+        this.handleErrors(
+          proxyInfo,
+          `ANONYMITY_CHECK socket error: ${error}`,
+          PCheckerErrors.siteCheckError,
+          ErrorsEnum.SOCKET_ERROR
+        );
+
+        reject({
+          [PCheckerErrors.siteCheckError]: ErrorsEnum.SOCKET_ERROR,
+        });
       });
 
       httpProxyRequestObject.on("close", () => {
-        if (siteErrors.length !== 0) {
-          this.hasErrors_ = true;
-          proxyInfo.errors = siteErrors;
-        }
         this.logger_.info(`HTTP Request Object Closed ${site}`);
-        //const newProp = (`${extractDomains(site).toLocaleString()}${extractRoutes(site)}`)
-        //proxyInfo[newProp] = tempState;
-
-        resolve(proxyInfo);
       });
 
       httpProxyRequestObject.end();

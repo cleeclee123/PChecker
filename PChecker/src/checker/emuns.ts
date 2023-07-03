@@ -47,13 +47,15 @@ export enum ErrorsEnum {
   UNKNOWN_ERROR = "UNKNOWN_ERROR",
   EMPTY_RESPONSE = "EMPTY_RESPONSE",
   BAD_CONTENT = "BAD_CONTENT",
-  BAD_RESPONSE = "BAD_RESPONSE"
+  BAD_RESPONSE = "BAD_RESPONSE",
+  BAD_URL_FORMAT = "BAD_URL_FORMAT"
 }
 
 export enum PCheckerErrors {
   getPublicIPError = "getPublicIPError",
   checkAnonymityError = "checkAnonymityError",
-  checkHTTPSError = "checkHTTPSError"
+  checkHTTPSError = "checkHTTPSError",
+  siteCheckError = "checkSiteError"
 }
 
 export const customEnumError = (customMessage: string, error: ErrorsEnum) => {
