@@ -205,6 +205,25 @@ export class PCheckerEssential extends PCheckerBase {
               return;
             } else {
               res.destroy();
+              resolve(proxyInfo);
+              return;
+            } 
+          });
+
+          res.on("close", () => {
+            proxyInfo.checkAnonymityTime = new Date().getTime() - startTime;
+
+            // further error handling here, handle any error we didnt handle
+            if (
+              proxyInfo.errors.length > 0 &&
+              !this.hasErrors_ &&
+              proxyInfo.errors
+            ) {
+              this.hasErrors_ = true;
+              reject({
+                [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
+              });
+              return;
             }
           });
 
@@ -220,24 +239,6 @@ export class PCheckerEssential extends PCheckerBase {
               [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
             });
             return;
-          });
-
-          res.on("close", () => {
-            // further error handling here, handle any error we didnt handle
-            proxyInfo.checkAnonymityTime = new Date().getTime() - startTime;
-            if (
-              proxyInfo.errors.length > 0 &&
-              !this.hasErrors_ &&
-              proxyInfo.errors
-            ) {
-              this.hasErrors_ = true;
-              reject({
-                [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
-              });
-              return;
-            }
-
-            resolve(proxyInfo);
           });
         }
       );
@@ -265,6 +266,7 @@ export class PCheckerEssential extends PCheckerBase {
           reject({
             [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_HANG_UP,
           });
+          return;
         }
         this.logger_.info("HTTP Request Object Closed (ANONYMITY_CHECK)");
       });
@@ -274,15 +276,15 @@ export class PCheckerEssential extends PCheckerBase {
   }
 
   private async checkProxyHTTPS(): Promise<ProxyInfoEssential> {
-    return new Promise<ProxyInfoEssential>((resolve) => {
+    return new Promise<ProxyInfoEssential>((resolve, reject) => {
       const proxyInfo = {} as ProxyInfoEssential;
       proxyInfo.httpConnectRes = -1;
+      proxyInfo.errors = [] as string[];
 
       let response: string;
       let statusCode: string;
       let didConnect: boolean = false;
 
-      const httpsErrors: string[] = [];
       const startTime = new Date().getTime();
       const buffers = [] as Buffer[];
       let buffersLength: number = 0;
@@ -309,12 +311,12 @@ export class PCheckerEssential extends PCheckerBase {
         // meaning/confirming server has no https support
         onData();
 
-        // check response at socket end
         this.socketEssential_.on("end", () => {
-          // handle empty response here
           this.logger_.info(
-            `checkProxyHTTPS empty response: https may be not supported`
+            `https response time (network): ${new Date().getTime() - startTime}`
           );
+
+          // handles empty response
           if (
             proxyInfo.https === undefined ||
             response === undefined ||
@@ -323,36 +325,38 @@ export class PCheckerEssential extends PCheckerBase {
             proxyInfo.https = false;
           }
 
-          // 204 (No Content) status code indicates that the server has successfully
-          // fulfilled the request (HTTP CONNECT) and that there is no additional content
-          // to send in the response payload body
-          if (didConnect) {
-            statusCode = "204";
-            this.logger_.info(
-              "checkProxyHTTPS no content - should have sent 204 status code"
-            );
-          }
+          resolve(proxyInfo);
+          return;
         });
 
         // resolve when socket is close, we destory after seeing sucessful status code
         this.socketEssential_.on("close", () => {
-          proxyInfo.httpConnectRes = new Date().getTime() - startTime;
-          if (httpsErrors.length !== 0) {
+          // further error handling here, handle any error we didnt handle
+          if (
+            proxyInfo.errors.length > 0 &&
+            !this.hasErrors_ &&
+            proxyInfo.errors
+          ) {
             this.hasErrors_ = true;
-            proxyInfo.errors = httpsErrors;
+            reject({
+              [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
+            });
+            return;
           }
-
-          resolve(proxyInfo);
         });
 
         // todo: better/more specifc error handling
         this.socketEssential_.on("error", (error) => {
-          httpsErrors.push(
-            customEnumError("HTTPS_CHECK", ErrorsEnum.SOCKET_ERROR)
+          this.handleErrors(
+            proxyInfo,
+            `ANONYMITY_CHECK socket error: ${error}`,
+            PCheckerErrors.checkHTTPSError,
+            ErrorsEnum.SOCKET_ERROR
           );
-          this.logger_.error(`getProxyLocation connect error: ${error}`);
 
-          this.socketEssential_.destroy();
+          reject({
+            [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
+          });
         });
       };
 
@@ -376,10 +380,19 @@ export class PCheckerEssential extends PCheckerBase {
           statusCode = String(+response.split(" ")[1]);
           this.logger_.info(`checkProxyHTTPS statusCode: ${statusCode}`);
 
-          if (statusCode === "200") proxyInfo.https = true;
-          else proxyInfo.https = false;
+          if (statusCode === "200") {
+            proxyInfo.https = true;
+            this.socketEssential_.destroy();
+            resolve(proxyInfo);
+            return;
+          } else {
+            proxyInfo.https = false;
+            this.socketEssential_.destroy();
+            resolve(proxyInfo);
+            return;
+          }
 
-          this.socketEssential_.destroy();
+          // empty responses will be handled in the on "end" event
         });
       };
 

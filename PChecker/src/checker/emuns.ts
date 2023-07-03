@@ -52,7 +52,8 @@ export enum ErrorsEnum {
 
 export enum PCheckerErrors {
   getPublicIPError = "getPublicIPError",
-  checkAnonymityError = "checkAnonymityError"
+  checkAnonymityError = "checkAnonymityError",
+  checkHTTPSError = "checkHTTPSError"
 }
 
 export const customEnumError = (customMessage: string, error: ErrorsEnum) => {
