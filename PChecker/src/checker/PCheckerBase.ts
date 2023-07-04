@@ -184,6 +184,12 @@ export class PCheckerBase {
           }
         });
 
+        res.on("close", () => {
+          this.logger_.info(
+            `getPublicIP Response Time: ${new Date().getTime() - startTime}`
+          );
+        });
+
         res.on("error", (error) => {
           this.logger_.error(`getPublicIP Response Error: ${error.message}`);
           promiseFlag = true;
@@ -206,7 +212,7 @@ export class PCheckerBase {
       });
       
       req.on("close", () => {
-        this.logger_.info("HTTP Request Object Closed (Base)");
+        this.logger_.info(`HTTP Request Socket Closed (Base): ${new Date().getTime() - startTime}`);
         if (!promiseFlag) {
           reject({
             [PCheckerErrors.getPublicIPError]: ErrorsEnum.UNKNOWN_ERROR,
