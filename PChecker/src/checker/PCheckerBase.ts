@@ -1,7 +1,7 @@
 "use-strict";
 
 import http from "http";
-import { ProxyOptions, ProxyError, PCheckerOptions } from "./types.js";
+import { ProxyOptions, PCheckerErrorObject, PCheckerOptions } from "./types.js";
 import { ErrorsEnum, PCheckerErrors } from "./emuns.js";
 import { createLogger, transports, format, Logger } from "winston";
 
@@ -144,64 +144,77 @@ export class PCheckerBase {
    * @returns Promise<String | Error>
    * Gets Your Public IP Address
    */
-  protected getPublicIP(): Promise<string | ProxyError> {
-    return new Promise<string | ProxyError>((resolve, reject) => {
+  
+  protected getPublicIP(): Promise<string | PCheckerErrorObject> {
+    return new Promise<string>((resolve, reject) => {
       const startTime = new Date().getTime();
-      const errors = [] as string[];
+      let promiseFlag: boolean = false;
 
-      let myPublicIP: string = "";
       const requestOptions = {
         host: PCheckerBase.kProxyJudgeExpressHost,
         port: 6969,
         path: "/clientip",
       };
 
-      const httpRequest = http.get(requestOptions, (res) => {
+      const req = http.get(requestOptions, (res) => {
+        this.logger_.info(`getPublicIP status code: ${res.statusCode}`);
         if (res.statusCode !== 200) {
-          this.logger_.error(`getPublicIP bad status code: ${res.statusCode}`);
-          res.resume();
-          reject({
-            [PCheckerErrors.getPublicIPError]: ErrorsEnum.STATUS_CODE_ERROR,
-          });
-          return;
+          res.destroy(new Error(ErrorsEnum.STATUS_CODE_ERROR));
         }
 
         const responseData = [] as Buffer[];
         res.on("data", (data) => responseData.push(data));
 
         res.on("end", () => {
+          this.logger_.info(
+            `getPublicIP Network Response: ${new Date().getTime() - startTime}`
+          );
+
           try {
             const clientIP = JSON.parse(Buffer.concat(responseData).toString());
             if (clientIP.hasOwnProperty("clientip")) {
-              myPublicIP = clientIP["clientip"];
-              resolve(myPublicIP);
+              promiseFlag = true;
+              resolve(String(clientIP["clientip"]));
             } else {
-              reject({
-                [PCheckerErrors.getPublicIPError]: ErrorsEnum.JSON_PARSE_ERROR,
-              });
-              return;
+              res.destroy(new Error(ErrorsEnum.BAD_RESPONSE));
             }
           } catch (error) {
-            this.logger_.error(`getPublicIP JSON Parse Error`);
-            reject({
-              [PCheckerErrors.getPublicIPError]: ErrorsEnum.JSON_PARSE_ERROR,
-            });
-            return;
+            this.logger_.error(`getPublicIP JSON Parse Error: ${Error}`);
+            res.destroy(new Error(ErrorsEnum.JSON_PARSE_ERROR));
           }
+        });
+
+        res.on("error", (error) => {
+          this.logger_.error(`getPublicIP Response Error: ${error.message}`);
+          promiseFlag = true;
+          reject({
+            [PCheckerErrors.getPublicIPError]: error.message,
+          } as PCheckerErrorObject);
         });
       });
 
-      httpRequest.on("error", (error) => {
-        this.logger_.error(`getPublicIP socket hang up error: ${error}`);
-        this.logger_.error(`Did you forget to start azenv?`);
-        httpRequest.destroy();
+      req.setTimeout(this.timeout_, () => {
+        req.destroy(new Error(ErrorsEnum.TIMEOUT));
       });
-
-      httpRequest.on("close", () => {
+      
+      req.on("error", (error) => {
+        this.logger_.error(`getPublicIP Request Error: ${error.message}`);
+        promiseFlag = true;
+        reject({
+          [PCheckerErrors.getPublicIPError]: error.message,
+        });
+      });
+      
+      req.on("close", () => {
         this.logger_.info("HTTP Request Object Closed (Base)");
+        if (!promiseFlag) {
+          reject({
+            [PCheckerErrors.getPublicIPError]: ErrorsEnum.UNKNOWN_ERROR,
+          });
+        }
       });
 
-      httpRequest.end();
+      req.end();
     });
   }
 
