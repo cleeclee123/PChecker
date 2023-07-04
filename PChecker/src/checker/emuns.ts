@@ -35,6 +35,8 @@ export enum ErrorsEnum {
   PARSE_ERROR = "PARSE_ERROR",
   PROMISE_RACE_ERROR = "PROMISE_RACE_ERROR",
   SOCKET_ERROR = "SOCKET_ERROR",
+  SOCKET_RESPONSE_ERROR = "SOCKET_RESPONSE_ERROR",
+  SOCKET_REQUEST_ERROR = "SOCKET_REQUEST_ERROR",
   EMPTY_SOCKET_RESPONSE = "EMPTY_RESPONSE",
   GEO_LOCATION_ERROR = "GEO_LOCATION_ERROR",
   PUBLIC_IP_ADDRESS_ERROR = "PUBLIC_IP_ADDRESS_ERROR",
@@ -55,7 +57,8 @@ export enum PCheckerErrors {
   getPublicIPError = "getPublicIPError",
   checkAnonymityError = "checkAnonymityError",
   checkHTTPSError = "checkHTTPSError",
-  siteCheckError = "checkSiteError"
+  siteCheckError = "checkSiteError",
+  getProxyLocationError = "getProxyLocationError"
 }
 
 export const customEnumError = (customMessage: string, error: ErrorsEnum) => {

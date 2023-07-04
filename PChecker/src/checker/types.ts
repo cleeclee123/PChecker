@@ -1,4 +1,4 @@
-import { ProxyAnonymityEnum, ErrorsEnum, DNSLeakEnum } from "./emuns.js";
+import { ProxyAnonymityEnum, ErrorsEnum, DNSLeakEnum, PCheckerErrors } from "./emuns.js";
 
 import http from "http";
 
@@ -103,12 +103,9 @@ export type ProxyInfoEssential = {
   https?: boolean;
   httpConnectRes?: number;
   countryCode?: string;
-  errors?: string[];
+  errors?: Set<ErrorsEnum>;
   proxyString?: string;
   timeout?: number;
-  judgeError?: ErrorsEnum.PROXY_JUDGE_ERROR;
-  timeoutError?: ErrorsEnum.TIMEOUT;
-  unknownError?: ErrorsEnum.UNKNOWN_ERROR;
   [key: string]: any;
 };
 
@@ -122,3 +119,5 @@ export type PCheckerOptions = {
   runProxyLocation?: boolean;
   sitesToCheck?: string[];
 };
+
+export type PCheckerErrorObject = Record<PCheckerErrors, ErrorsEnum>
