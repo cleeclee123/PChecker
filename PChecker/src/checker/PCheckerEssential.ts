@@ -117,12 +117,22 @@ export class PCheckerEssential extends PCheckerBase {
     }
   }
 
-  private async checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
+  /**
+   * @method checkProxyAnonymityEssential 
+   * @returns Promise<ProxyInfoEssential>
+   *  - Parses request headers from proxy, flagged header props in base PChecker class, derives anonymity rating
+   *  - more specifically, returns a subset (CheckProxyAnonymity )of props from the ProxyInfoEssential 
+   *    type associated with proxy anonymity check (see below)
+   *  - resolves a ProxyInfoEssential (CheckProxyAnonymity), rejects PCheckerErrorObject 
+   */
+  private checkProxyAnonymityEssential(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>(async (resolve, reject) => {
-      const proxyInfo = {} as ProxyInfoEssential;
+      type CheckProxyAnonymity = Pick<ProxyInfoEssential, 'anonymity' | 'errors' | 'notJSONFlag' | 'checkAnonymityTime'>; 
+
+      const proxyInfo = {} as CheckProxyAnonymity;
       proxyInfo.anonymity = ProxyAnonymityEnum.Unknown;
       proxyInfo.errors = new Set<ErrorsEnum>();
-      proxyInfo.notJSONFlag = false;
+      proxyInfo.notJSONFlag = false; // temp flag, will be deleted
 
       let promiseFlag = false;
       const startTime = new Date().getTime();
@@ -183,6 +193,7 @@ export class PCheckerEssential extends PCheckerBase {
 
           // parseHeaders will modify anonymity rating and anonymityErrors
           this.parseHeaders(res, body, proxyInfo);
+          delete proxyInfo.notJSONFlag;
 
           // parse error, handle in "close" event
           if (!proxyInfo.anonymity || proxyInfo.errors.size > 0) {
@@ -224,7 +235,7 @@ export class PCheckerEssential extends PCheckerBase {
             this.hasErrors_ = true;
             reject({
               [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
-            });
+            } as PCheckerErrorObject);
           } else {            
             // success case
             resolve(proxyInfo)
@@ -242,13 +253,13 @@ export class PCheckerEssential extends PCheckerBase {
           reject({
             [PCheckerErrors.checkAnonymityError]:
               ErrorsEnum.TIMEOUT,
-          });
+          } as PCheckerErrorObject);
           promiseFlag = true;
         } else {
           reject({
             [PCheckerErrors.checkAnonymityError]:
               ErrorsEnum.SOCKET_REQUEST_ERROR,
-          });
+          } as PCheckerErrorObject);
           promiseFlag = true;
         }
       });
@@ -258,7 +269,7 @@ export class PCheckerEssential extends PCheckerBase {
         if (!promiseFlag) {
           reject({
             [PCheckerErrors.checkAnonymityError]: ErrorsEnum.UNKNOWN_ERROR,
-          });
+          } as PCheckerErrorObject);
         }
         this.logger_.info("HTTP Request Object Closed (ANONYMITY_CHECK)");
       });
@@ -267,15 +278,21 @@ export class PCheckerEssential extends PCheckerBase {
     });
   }
 
+  /**
+   * @method checkProxyHTTPS 
+   * @returns Promise<ProxyInfoEssential>
+   */
+
   private async checkProxyHTTPS(): Promise<ProxyInfoEssential> {
     return new Promise<ProxyInfoEssential>((resolve, reject) => {
-      const proxyInfo = {} as ProxyInfoEssential;
+      type CheckProxyHTTPS = Pick<ProxyInfoEssential, 'https' | 'httpConnectRes' | 'errors'>; 
+      
+      const proxyInfo = {} as CheckProxyHTTPS;
       proxyInfo.httpConnectRes = -1;
       proxyInfo.errors = new Set<ErrorsEnum>();
 
       let response: string;
       let statusCode: string;
-      let didConnect: boolean = false;
 
       const startTime = new Date().getTime();
       const buffers = [] as Buffer[];
@@ -293,7 +310,6 @@ export class PCheckerEssential extends PCheckerBase {
         )} HTTP/1.1\r\n`;
 
         this.socketEssential_.on("connect", () => {
-          didConnect = true;
           this.socketEssential_.write(`${payload}\r\n`);
           this.logger_.info(`https connncted`);
         });
@@ -317,10 +333,24 @@ export class PCheckerEssential extends PCheckerBase {
             proxyInfo.https = false;
           }
 
-          resolve(proxyInfo);
-          return;
+          // ensure socket is closed
+          this.socketEssential_.destroy();
         });
-
+        
+        // todo: better/more specifc error handling
+        this.socketEssential_.on("error", (error) => {
+          this.handleErrors(
+            proxyInfo,
+            `ANONYMITY_CHECK socket error: ${error}`,
+            ErrorsEnum.SOCKET_ERROR
+            );
+            
+            reject({
+              [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
+            });
+          });
+        };
+        
         // resolve when socket is close, we destory after seeing sucessful status code
         this.socketEssential_.on("close", () => {
           proxyInfo.httpConnectRes = new Date().getTime() - startTime;
@@ -337,21 +367,7 @@ export class PCheckerEssential extends PCheckerBase {
             return;
           }
         });
-
-        // todo: better/more specifc error handling
-        this.socketEssential_.on("error", (error) => {
-          this.handleErrors(
-            proxyInfo,
-            `ANONYMITY_CHECK socket error: ${error}`,
-            ErrorsEnum.SOCKET_ERROR
-          );
-
-          reject({
-            [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
-          });
-        });
-      };
-
+        
       // shamelessly taken from:
       // https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts
       const onData = () => {
@@ -374,17 +390,13 @@ export class PCheckerEssential extends PCheckerBase {
 
           if (statusCode === "200") {
             proxyInfo.https = true;
-            this.socketEssential_.destroy();
             resolve(proxyInfo);
-            return;
+            this.socketEssential_.destroy();
           } else {
             proxyInfo.https = false;
-            this.socketEssential_.destroy();
             resolve(proxyInfo);
-            return;
+            this.socketEssential_.destroy();
           }
-
-          // empty responses will be handled in the on "end" event
         });
       };
 

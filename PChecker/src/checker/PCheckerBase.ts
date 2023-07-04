@@ -140,12 +140,11 @@ export class PCheckerBase {
   }
 
   /**
-   * @method: getPublicIP(), private helper function
-   * @returns Promise<String | Error>
+   * @method: getPublicIP()
+   * @returns Promise<String>, resolves a string, rejects a PCheckerErrorObject
    * Gets Your Public IP Address
    */
-  
-  protected getPublicIP(): Promise<string | PCheckerErrorObject> {
+  protected getPublicIP(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       const startTime = new Date().getTime();
       let promiseFlag: boolean = false;
