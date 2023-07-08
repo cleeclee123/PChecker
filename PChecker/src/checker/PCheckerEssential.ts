@@ -8,11 +8,7 @@ import {
   PCheckerOptions,
   PCheckerErrorObject,
 } from "./types.js";
-import {
-  ProxyAnonymityEnum,
-  ErrorsEnum,
-  PCheckerErrors,
-} from "./emuns.js";
+import { ProxyAnonymityEnum, ErrorsEnum, PCheckerErrors } from "./emuns.js";
 
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
@@ -37,8 +33,8 @@ export class PCheckerEssential extends PCheckerBase {
 
   /**
    * @method parseHeaders
-   * @param body 
-   * @param proxyInfo 
+   * @param body
+   * @param proxyInfo
    * @returns void
    * - helper for checkProxyAnonymity to parse proxy headers
    */
@@ -360,13 +356,17 @@ export class PCheckerEssential extends PCheckerBase {
         this.socketEssential_.on("close", () => {
           proxyInfo.httpConnectRes = new Date().getTime() - startTime;
           // further error handling here, handle any error we didnt handle
-          if (proxyInfo.errors.size > 0 && !this.hasErrors_ && proxyInfo.errors) {
+          if (
+            proxyInfo.errors.size > 0 &&
+            !this.hasErrors_ &&
+            proxyInfo.errors
+          ) {
             this.hasErrors_ = true;
             reject({
               [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
             } as PCheckerErrorObject);
           }
-  
+
           this.logger_.info(`HTTPS Socket Closed`);
         });
       };
@@ -532,7 +532,7 @@ export class PCheckerEssential extends PCheckerBase {
   /**
    * @method getProxyLocation
    * @returns ProxyInfoEssential (ProxyLocation)
-   * Gets country code of proxy, depends on ip-api.com 
+   * Gets country code of proxy, depends on ip-api.com
    */
   private async getProxyLocation(): Promise<ProxyInfoEssential> {
     type ProxyLocation = Pick<ProxyInfoEssential, "countryCode" | "errors">;
@@ -667,14 +667,14 @@ export class PCheckerEssential extends PCheckerBase {
    * Check essential proxy info
    */
   public async checkProxyEssential(): Promise<ProxyInfoEssential> {
-    const timeoutPromise: Promise<ProxyInfoEssential[]> = this.createTimeoutNew(
-      [
-        {
-          timeoutError: ErrorsEnum.TIMEOUT,
-          proxyString: `${this.host_}:${this.port_}`,
-        } as ProxyInfoEssential,
-      ] as ProxyInfoEssential[]
-    );
+    // const timeoutPromise: Promise<ProxyInfoEssential[]> = this.createTimeoutNew(
+    //   [
+    //     {
+    //       timeoutError: ErrorsEnum.TIMEOUT,
+    //       proxyString: `${this.host_}:${this.port_}`,
+    //     } as ProxyInfoEssential,
+    //   ] as ProxyInfoEssential[]
+    // );
 
     // race between timeout and promises
     try {
@@ -694,12 +694,14 @@ export class PCheckerEssential extends PCheckerBase {
         promises.push(this.checkProxyHTTPS());
       }
 
-      const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
-      if (race[0].hasOwnProperty("timeoutError")) {
-        return race[0] as ProxyInfoEssential;
-      }
+      // const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
+      // if (race[0].hasOwnProperty("timeoutError")) {
+      //   throw {
+      //     [PCheckerErrors.]: ErrorsEnum.TIMEOUT,
+      //   } as PCheckerErrorObject;
+      // }
 
-      const results = race as ProxyInfoEssential[];
+      const results = await Promise.all(promises) as ProxyInfoEssential[];
       const validResults = results.filter(
         (result) => !(result instanceof Error)
       );

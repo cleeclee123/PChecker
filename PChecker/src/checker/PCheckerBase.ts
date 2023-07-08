@@ -4,6 +4,9 @@ import http from "http";
 import { ProxyOptions, PCheckerErrorObject, PCheckerOptions } from "./types.js";
 import { ErrorsEnum, PCheckerErrors } from "./emuns.js";
 import { createLogger, transports, format, Logger } from "winston";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 /**
  * @todo:
@@ -25,9 +28,12 @@ export class PCheckerBase {
   protected timeoutsArray_: Array<Promise<any>>;
   protected logger_: Logger;
 
-  protected static readonly kProxyJudgeURL: string = `http://myproxyjudgeclee.software/pj-cleeclee123.php`;
-  protected static readonly kProxyJudgeExpressHost: string = "198.58.101.166";
-  protected static readonly kProxyJudgeURLExpressApp: string = `http://198.58.101.166:6969/azenv`;
+  protected static readonly kProxyJudgeURL: string =
+    process.env.PROXY_JUDGE_URL_OLD;
+  protected static readonly kProxyJudgeExpressHost: string =
+    process.env.PROXY_JUDGE_IP_NEW;
+  protected static readonly kProxyJudgeURLExpressApp: string =
+    process.env.PROXY_JUDGE_URL_NEW;
   protected static readonly kUserAgents: string[] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
@@ -201,7 +207,7 @@ export class PCheckerBase {
       req.setTimeout(this.timeout_, () => {
         req.destroy(new Error(ErrorsEnum.TIMEOUT));
       });
-      
+
       req.on("error", (error) => {
         this.logger_.error(`getPublicIP Request Error: ${error.message}`);
         promiseFlag = true;
@@ -209,9 +215,13 @@ export class PCheckerBase {
           [PCheckerErrors.getPublicIPError]: error.message,
         });
       });
-      
+
       req.on("close", () => {
-        this.logger_.info(`HTTP Request Socket Closed (Base): ${new Date().getTime() - startTime}`);
+        this.logger_.info(
+          `HTTP Request Socket Closed (Base): ${
+            new Date().getTime() - startTime
+          }`
+        );
         if (!promiseFlag) {
           reject({
             [PCheckerErrors.getPublicIPError]: ErrorsEnum.UNKNOWN_ERROR,
