@@ -127,7 +127,6 @@ export class PCheckerEssential extends PCheckerBase {
       proxyInfo.errors = new Set<ErrorsEnum>();
       proxyInfo.notJSONFlag = false; // temp flag, will be deleted
 
-      let promiseFlag = false;
       const startTime = new Date().getTime();
 
       // checks if public ip address is already pass in, gets IP of client
@@ -145,7 +144,7 @@ export class PCheckerEssential extends PCheckerBase {
         }
       }
 
-      const req = http.get(this.optionspjExpressApp_, (res) => {
+      const req = http.get(this.optionsProxyJudge_, (res) => {
         const { statusCode } = res;
         this.logger_.info(`checkProxyAnonymity status code: ${res.statusCode}`);
         let contentType = res.headers["content-type"];
@@ -157,7 +156,9 @@ export class PCheckerEssential extends PCheckerBase {
             ErrorsEnum.STATUS_CODE_ERROR,
             res
           );
-        } else if (!/^application\/json/.test(contentType!.split(";")[0])) {
+        } else if (
+          !/^application\/json/.test(String(contentType)?.split(";")[0])
+        ) {
           this.logger_.warn(`checkProxyAnonymity content type is not JSON`);
           proxyInfo.notJSONFlag = true;
         }
@@ -214,7 +215,6 @@ export class PCheckerEssential extends PCheckerBase {
               [PCheckerErrors.checkAnonymityError]: ErrorsEnum.SOCKET_ERROR,
             } as PCheckerErrorObject);
           }
-          promiseFlag = true;
         });
 
         res.on("close", () => {
@@ -234,7 +234,6 @@ export class PCheckerEssential extends PCheckerBase {
             // success case
             resolve(proxyInfo);
           }
-          promiseFlag = true;
         });
       });
 
@@ -247,23 +246,16 @@ export class PCheckerEssential extends PCheckerBase {
           reject({
             [PCheckerErrors.checkAnonymityError]: ErrorsEnum.TIMEOUT,
           } as PCheckerErrorObject);
-          promiseFlag = true;
         } else {
           reject({
             [PCheckerErrors.checkAnonymityError]:
               ErrorsEnum.SOCKET_REQUEST_ERROR,
           } as PCheckerErrorObject);
-          promiseFlag = true;
         }
       });
 
       // handle socket error here
       req.on("close", () => {
-        if (!promiseFlag) {
-          reject({
-            [PCheckerErrors.checkAnonymityError]: ErrorsEnum.UNKNOWN_ERROR,
-          } as PCheckerErrorObject);
-        }
         this.logger_.info("HTTP Request Socket Closed (ANONYMITY_CHECK)");
       });
 
@@ -487,21 +479,13 @@ export class PCheckerEssential extends PCheckerBase {
 
         res.on("error", (error) => {
           this.logger_.error(`check_${site} error: ${error}`);
-          reject({
-            [PCheckerErrors.siteCheckError]: ErrorsEnum.SOCKET_ERROR,
-          });
+          isOk = false;
         });
 
         res.on("close", () => {
           this.logger_.info(
             `${site} Response Time: ${new Date().getTime() - startTime}`
           );
-
-          const newProp = `${extractDomains(site).join("")}${extractRoutes(
-            site
-          ).join("")}_support`;
-          proxyInfo[newProp] = isOk;
-          resolve(proxyInfo);
         });
       });
 
@@ -510,18 +494,20 @@ export class PCheckerEssential extends PCheckerBase {
       });
 
       req.on("error", (error) => {
+        isOk = false;
         if (error.message === ErrorsEnum.TIMEOUT) {
-          reject({
-            [PCheckerErrors.siteCheckError]: ErrorsEnum.TIMEOUT,
-          });
+          this.logger_.error(`checkSite timeout`);
         } else {
-          reject({
-            [PCheckerErrors.siteCheckError]: ErrorsEnum.SOCKET_ERROR,
-          });
+          this.logger_.error(`checkSite error: ${error}`);
         }
       });
 
       req.on("close", () => {
+        const newProp = `${extractDomains(site).join("")}${extractRoutes(
+          site
+        ).join("")}_support`;
+        proxyInfo[newProp] = isOk;
+        resolve(proxyInfo);
         this.logger_.info(`HTTP Request Socket Closed (${site})`);
       });
 
@@ -543,7 +529,6 @@ export class PCheckerEssential extends PCheckerBase {
       proxyInfo.errors = new Set<ErrorsEnum>();
 
       const startTime = new Date().getTime();
-      let promiseFlag = false;
 
       const requestOptions = {
         host: this.host_,
@@ -605,7 +590,6 @@ export class PCheckerEssential extends PCheckerBase {
               [PCheckerErrors.getProxyLocationError]: ErrorsEnum.SOCKET_ERROR,
             } as PCheckerErrorObject);
           }
-          promiseFlag = true;
         });
 
         res.on("close", () => {
@@ -628,7 +612,6 @@ export class PCheckerEssential extends PCheckerBase {
             // success case
             resolve(proxyInfo);
           }
-          promiseFlag = true;
         });
       });
 
@@ -649,11 +632,6 @@ export class PCheckerEssential extends PCheckerBase {
       });
 
       req.on("close", () => {
-        if (!promiseFlag) {
-          reject({
-            [PCheckerErrors.getProxyLocationError]: ErrorsEnum.UNKNOWN_ERROR,
-          } as PCheckerErrorObject);
-        }
         this.logger_.info("HTTP Request Object Closed (GET_LOCATION)");
       });
 
@@ -661,21 +639,12 @@ export class PCheckerEssential extends PCheckerBase {
     });
   }
 
-  /**
+  /*
    * @method checkProxyEssential
    * @returns: Promise<Object | Error>
    * Check essential proxy info
    */
   public async checkProxyEssential(): Promise<ProxyInfoEssential> {
-    // const timeoutPromise: Promise<ProxyInfoEssential[]> = this.createTimeoutNew(
-    //   [
-    //     {
-    //       timeoutError: ErrorsEnum.TIMEOUT,
-    //       proxyString: `${this.host_}:${this.port_}`,
-    //     } as ProxyInfoEssential,
-    //   ] as ProxyInfoEssential[]
-    // );
-
     // race between timeout and promises
     try {
       let promises: Promise<ProxyInfoEssential>[] = [];
@@ -694,49 +663,48 @@ export class PCheckerEssential extends PCheckerBase {
         promises.push(this.checkProxyHTTPS());
       }
 
-      // const race = await Promise.race([timeoutPromise, Promise.all(promises)]);
-      // if (race[0].hasOwnProperty("timeoutError")) {
-      //   throw {
-      //     [PCheckerErrors.]: ErrorsEnum.TIMEOUT,
-      //   } as PCheckerErrorObject;
-      // }
-
-      const results = await Promise.all(promises) as ProxyInfoEssential[];
+      const results = (await Promise.all(promises)) as ProxyInfoEssential[];
       const validResults = results.filter(
         (result) => !(result instanceof Error)
       );
-
-      // allow to handle multiple errors
-      const allErrors: string[] = [];
-
-      // no need to iterate thru validResults if there are no errors
-      // return object will not have errors property
-      if (this.hasErrors_) {
-        validResults.forEach((result) => {
-          if (result.hasOwnProperty("errors")) {
-            allErrors.push(...result.errors);
-          }
-          result.errors = undefined;
-        });
-      }
-
       const essentialInfo: ProxyInfoEssential = Object.assign(
         {},
         ...validResults
       );
       essentialInfo.proxyString = `${this.host_}:${this.port_}`;
-
-      /**@TODO FIX THIS */
-      // if (allErrors.length !== 0) essentialInfo.errors = allErrors;
-      // else delete essentialInfo.errors;
+      if (!this.hasErrors_) delete essentialInfo.errors;
 
       return essentialInfo;
+
     } catch (error: any) {
-      console.log(error);
       if (error.hasOwnProperty(PCheckerErrors.checkAnonymityError)) {
-        this.logger_.error("Error with Anonymity Check");
+        this.logger_.error(
+          `check anonymity ${String(error[PCheckerErrors.checkAnonymityError])}`
+        );
         return {
           error: error[PCheckerErrors.checkAnonymityError],
+          proxyString: `${this.host_}:${this.port_}`,
+        } as ProxyInfoEssential;
+      }
+
+      if (error.hasOwnProperty(PCheckerErrors.checkHTTPSError)) {
+        this.logger_.error(
+          `check HTTPS ${String(error[PCheckerErrors.checkHTTPSError])}`
+        );
+        return {
+          error: error[PCheckerErrors.checkHTTPSError],
+          proxyString: `${this.host_}:${this.port_}`,
+        } as ProxyInfoEssential;
+      }
+
+      if (error.hasOwnProperty(PCheckerErrors.getProxyLocationError)) {
+        this.logger_.error(
+          `check location ${String(
+            error[PCheckerErrors.getProxyLocationError]
+          )}`
+        );
+        return {
+          error: error[PCheckerErrors.getProxyLocationError],
           proxyString: `${this.host_}:${this.port_}`,
         } as ProxyInfoEssential;
       }

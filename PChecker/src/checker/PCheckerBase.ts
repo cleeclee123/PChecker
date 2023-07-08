@@ -16,8 +16,7 @@ export class PCheckerBase {
   protected host_: string;
   protected port_: string;
   protected timeout_: number;
-  protected optionspj_: ProxyOptions;
-  protected optionspjExpressApp_: any;
+  protected optionsProxyJudge_: ProxyOptions;
   protected agent_: http.Agent;
   protected publicIPAddress_: string;
   protected runProxyLocation_: boolean;
@@ -28,12 +27,14 @@ export class PCheckerBase {
   protected timeoutsArray_: Array<Promise<any>>;
   protected logger_: Logger;
 
-  protected static readonly kProxyJudgeURL: string =
-    process.env.PROXY_JUDGE_URL_OLD;
-  protected static readonly kProxyJudgeExpressHost: string =
-    process.env.PROXY_JUDGE_IP_NEW;
-  protected static readonly kProxyJudgeURLExpressApp: string =
-    process.env.PROXY_JUDGE_URL_NEW;
+  private static readonly kProxyJudgeHost = process.env.PROXY_JUDGE_HOST;
+  private static readonly kAZENVServiceUrl = process.env.AZENV_SERVICE_URL;
+  private static readonly kAZENVServiceKey = process.env.AZENV_SERVICE_KEY;
+  private static readonly kPublicIPServiceUrl =
+    process.env.PUBLIC_IP_SERVICE_URL;
+  private static readonly kPublicIPServiceKey =
+    process.env.PUBLIC_IP_SERVICE_KEY;
+
   protected static readonly kUserAgents: string[] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
@@ -41,6 +42,7 @@ export class PCheckerBase {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9",
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36",
   ];
+
   protected readonly kFlaggedHeaderValuesSet: Set<string> = new Set([
     "authentication",
     "client-ip",
@@ -72,7 +74,7 @@ export class PCheckerBase {
 
   constructor(pcheckerOptions?: PCheckerOptions) {
     // always constructed
-    this.optionspj_ = {} as ProxyOptions;
+    this.optionsProxyJudge_ = {} as ProxyOptions;
     this.agent_ = {} as http.Agent;
     this.timeoutsArray_ = [] as Array<Promise<any>>;
 
@@ -96,36 +98,17 @@ export class PCheckerBase {
             ).toString("base64"))
         : (this.auth_ = undefined);
       if (this.auth_ !== undefined) {
-        this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+        this.optionsProxyJudge_.headers = { "Proxy-Authorization": this.auth_ };
       }
     }
 
-    this.optionspj_ = {
+    this.optionsProxyJudge_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerBase.kProxyJudgeURL,
+      path: `${PCheckerBase.kAZENVServiceUrl}?apikey=${PCheckerBase.kAZENVServiceKey}`,
       headers: {
-        Connection: "Keep-Alive",
-        "User-Agent":
-          PCheckerBase.kUserAgents[
-            Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
-          ],
-      },
-      agent: (this.agent_ = new http.Agent({
-        keepAlive: true,
-        maxSockets: 1,
-        keepAliveMsecs: 1000,
-      })),
-    };
-
-    this.optionspjExpressApp_ = {
-      host: this.host_,
-      port: Number(this.port_),
-      method: "GET",
-      path: PCheckerBase.kProxyJudgeURLExpressApp,
-      headers: {
-        Host: PCheckerBase.kProxyJudgeExpressHost,
+        Host: PCheckerBase.kProxyJudgeHost,
         "User-Agent":
           PCheckerBase.kUserAgents[
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
@@ -155,13 +138,8 @@ export class PCheckerBase {
       const startTime = new Date().getTime();
       let promiseFlag: boolean = false;
 
-      const requestOptions = {
-        host: PCheckerBase.kProxyJudgeExpressHost,
-        port: 6969,
-        path: "/clientip",
-      };
-
-      const req = http.get(requestOptions, (res) => {
+      const publicIPService = `${PCheckerBase.kPublicIPServiceUrl}?apikey=${PCheckerBase.kPublicIPServiceKey}`;
+      const req = http.get(publicIPService, (res) => {
         this.logger_.info(`getPublicIP status code: ${res.statusCode}`);
         if (res.statusCode !== 200) {
           res.destroy(new Error(ErrorsEnum.STATUS_CODE_ERROR));
@@ -281,12 +259,13 @@ export class PCheckerBase {
         Buffer.from(this.username_ + ":" + this.password_).toString("base64");
     }
 
-    this.optionspj_ = {
+    this.optionsProxyJudge_ = {
       host: this.host_,
       port: Number(this.port_),
       method: "GET",
-      path: PCheckerBase.kProxyJudgeURL,
+      path: `${PCheckerBase.kAZENVServiceUrl}?apikey=${PCheckerBase.kAZENVServiceKey}`,
       headers: {
+        Host: PCheckerBase.kProxyJudgeHost,
         "User-Agent":
           PCheckerBase.kUserAgents[
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
@@ -295,7 +274,7 @@ export class PCheckerBase {
     };
 
     if (this.auth_ !== undefined) {
-      this.optionspj_.headers = { "Proxy-Authorization": this.auth_ };
+      this.optionsProxyJudge_.headers = { "Proxy-Authorization": this.auth_ };
     }
   }
 
