@@ -12,16 +12,8 @@ import {
   ProxyAnonymityEnum,
   ErrorsEnum,
   PCheckerErrors,
-  customEnumError,
 } from "./emuns.js";
-import { HTTPResponse } from "puppeteer";
 
-/**
- * @todo:
- *  - testing infra
- *  - closures clean up
- *  - other optimizations
- */
 export class PCheckerEssential extends PCheckerBase {
   private socketEssential_: net.Socket;
   private hasErrors_: boolean;
@@ -43,12 +35,14 @@ export class PCheckerEssential extends PCheckerBase {
     if (res) res.destroy(new Error(errorEnum));
   }
 
-  // seperate to test
-  private parseHeaders(
-    res: http.IncomingMessage,
-    body: Buffer[],
-    proxyInfo: ProxyInfoEssential
-  ): void {
+  /**
+   * @method parseHeaders
+   * @param body 
+   * @param proxyInfo 
+   * @returns void
+   * - helper for checkProxyAnonymity to parse proxy headers
+   */
+  private parseHeaders(body: Buffer[], proxyInfo: ProxyInfoEssential): void {
     let headers: JSON | string[];
     let myPublicIPAddressCount = 0;
     let flaggedHeadersCount = 0;
@@ -196,7 +190,7 @@ export class PCheckerEssential extends PCheckerBase {
           }
 
           // parseHeaders will modify anonymity rating and anonymityErrors
-          this.parseHeaders(res, body, proxyInfo);
+          this.parseHeaders(body, proxyInfo);
           delete proxyInfo.notJSONFlag;
 
           // parse error, handle in "close" event
@@ -417,7 +411,7 @@ export class PCheckerEssential extends PCheckerBase {
    * @method checkProxySiteSupport
    * @param site, url of site to check thru proxy
    * @returns Promise<ProxyInfoEssential>
-   *  - tries HTTP get request to passed in site url through proxy, returns status code 
+   *  - tries HTTP get request to passed in site url through proxy, returns status code
    */
   private async checkProxySiteSupport(
     site: string
@@ -488,6 +482,7 @@ export class PCheckerEssential extends PCheckerBase {
         } else {
           isOk = false;
         }
+        res.resume();
         res.destroy();
 
         res.on("error", (error) => {
@@ -535,12 +530,15 @@ export class PCheckerEssential extends PCheckerBase {
   }
 
   /**
-   * @method
-   * @returns 
+   * @method getProxyLocation
+   * @returns ProxyInfoEssential (ProxyLocation)
+   * Gets country code of proxy, depends on ip-api.com 
    */
   private async getProxyLocation(): Promise<ProxyInfoEssential> {
+    type ProxyLocation = Pick<ProxyInfoEssential, "countryCode" | "errors">;
+
     return new Promise<ProxyInfoEssential>((resolve, reject) => {
-      const proxyInfo = {} as ProxyInfoEssential;
+      const proxyInfo = {} as ProxyLocation;
       proxyInfo.countryCode = "";
       proxyInfo.errors = new Set<ErrorsEnum>();
 
@@ -664,7 +662,7 @@ export class PCheckerEssential extends PCheckerBase {
   }
 
   /**
-   * @method: checkProxyEssential(),
+   * @method checkProxyEssential
    * @returns: Promise<Object | Error>
    * Check essential proxy info
    */
