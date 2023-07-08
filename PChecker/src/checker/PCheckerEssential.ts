@@ -355,21 +355,21 @@ export class PCheckerEssential extends PCheckerBase {
             } as PCheckerErrorObject);
           }
         });
+
+        // resolve when socket is close, we destory after seeing sucessful status code
+        this.socketEssential_.on("close", () => {
+          proxyInfo.httpConnectRes = new Date().getTime() - startTime;
+          // further error handling here, handle any error we didnt handle
+          if (proxyInfo.errors.size > 0 && !this.hasErrors_ && proxyInfo.errors) {
+            this.hasErrors_ = true;
+            reject({
+              [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
+            } as PCheckerErrorObject);
+          }
+  
+          this.logger_.info(`HTTPS Socket Closed`);
+        });
       };
-
-      // resolve when socket is close, we destory after seeing sucessful status code
-      this.socketEssential_.on("close", () => {
-        proxyInfo.httpConnectRes = new Date().getTime() - startTime;
-        // further error handling here, handle any error we didnt handle
-        if (proxyInfo.errors.size > 0 && !this.hasErrors_ && proxyInfo.errors) {
-          this.hasErrors_ = true;
-          reject({
-            [PCheckerErrors.checkHTTPSError]: ErrorsEnum.SOCKET_ERROR,
-          } as PCheckerErrorObject);
-        }
-
-        this.logger_.info(`HTTPS Socket Closed`);
-      });
 
       // shamelessly taken from:
       // https://github.com/TooTallNate/node-https-proxy-agent/blob/master/src/parse-proxy-response.ts

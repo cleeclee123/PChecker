@@ -101,11 +101,11 @@ export class PChecker extends PCheckerMixin {
       delete essential.unknownError;
     }
 
-    if (essential.errors) {
-      essential.errors.concat(combineErrMes);
-    } else if (combineErrMes.length > 0) {
-      essential.errors = combineErrMes;
-    }
+    // if (essential.errors) {
+    //   essential.errors.concat(combineErrMes);
+    // } else if (combineErrMes.length > 0) {
+    //   essential.errors = combineErrMes;
+    // }
 
     this.clearTimeouts();
 
