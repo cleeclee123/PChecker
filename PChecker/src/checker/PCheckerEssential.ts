@@ -72,15 +72,22 @@ export class PCheckerEssential extends PCheckerBase {
         // most likely shape of line: "header prop = prop value"
         for (const line of headers) {
           if (!line) continue;
-          const key = line.split("=")[0].trim().toLowerCase().replace("_", "-");
-          const value = line.split("=")[1].trim().toLowerCase();
 
-          if (this.kFlaggedHeaderValuesSet.has(key)) {
-            flaggedHeadersCount++;
-            toFlag.push(key);
-            if (value === this.publicIPAddress_) {
-              myPublicIPAddressCount++;
+          try {
+            const key = line.split("=")[0].trim().toLowerCase().replace("_", "-");
+            const value = line.split("=")[1].trim().toLowerCase();
+  
+            if (this.kFlaggedHeaderValuesSet.has(key)) {
+              flaggedHeadersCount++;
+              toFlag.push(key);
+              if (value === this.publicIPAddress_) {
+                myPublicIPAddressCount++;
+              }
             }
+          } catch (error) {
+            proxyInfo.anonymity = undefined;
+            this.logger_.info(`checkProxyAnonymity Parse Unknown Error: ${error}`);
+            return;
           }
         }
       } else {

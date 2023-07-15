@@ -101,6 +101,14 @@ export class PCheckerBase {
         this.optionsProxyJudge_.headers = { "Proxy-Authorization": this.auth_ };
       }
     }
+    
+    // https://connectreport.com/blog/tuning-http-keep-alive-in-node-js/
+    // default is set to 5 second, set timeout to user timeout
+    const proxytJudgeAgent = new http.Agent({
+      keepAlive: true,
+      maxSockets: 1,
+      keepAliveMsecs: this.timeout_,
+    });
 
     this.optionsProxyJudge_ = {
       host: this.host_,
@@ -114,6 +122,7 @@ export class PCheckerBase {
             Math.floor(Math.random() * PCheckerBase.kUserAgents.length)
           ],
       },
+      agent: proxytJudgeAgent
     };
 
     this.logger_ = createLogger({

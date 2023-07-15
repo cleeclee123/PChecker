@@ -3,8 +3,12 @@ import { PCheckerOptions } from "./checker/types.js";
 import http from "http";
 import os from "os";
 import tls from "tls";
+import redis, { RedisClientType } from "redis";
+
+import * as dotenv from "dotenv";
 
 os.freemem();
+dotenv.config();
 
 // let t = await pChecks.testGoogle("52.79.43.141", "80");
 // let t = await pChecks.httpsCheck("20.24.43.214", "8123", 5000);
@@ -45,9 +49,15 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
 const proxyOptions = {
-  host: "192.241.238.167",
-  port: "31028",
-  timeout: "10000",
+  host: "50.223.129.104",
+  port: "80",
+  timeout: "20000",
+  publicIPAddress: "64.189.16.188",
+  // sitesToCheck: [
+  //   "https://google.com",
+  //   "https://finance.yahoo",
+  //   "https://www.google.com/finance",
+  // ],
   // runProxyLocation: true,
 } as PCheckerOptions;
 
@@ -57,65 +67,75 @@ let check1 = await p1.checkEssential();
 console.log(check1);
 
 //////////////////////////////////////////////////////////////
+// Redis
+
+// let redisClient: RedisClientType;
+
+// (async () => {
+//   redisClient = redis.createClient();
+
+//   redisClient.on("error", (error) => console.error(`Error : ${error}`));
+
+//   await redisClient.connect();
+// })();
+
+
+//////////////////////////////////////////////////////////////
 // Test HTTP Requests
 
-const httpReqCleanup = (reqObj: http.ClientRequest) => {
-  reqObj.on("error", (error) => {
-    console.log("http error");
-    console.log(error);
-    reqObj.destroy();
-  });
+// const httpReqCleanup = (reqObj: http.ClientRequest) => {
+//   reqObj.on("error", (error) => {
+//     console.log("http error");
+//     console.log(error);
+//     reqObj.destroy();
+//   });
 
-  reqObj.on("close", () => {
-    console.log("http closed");
-  });
+//   reqObj.on("close", () => {
+//     console.log("http closed");
+//   });
 
-  reqObj.end();
+//   reqObj.end();
 
-  return reqObj;
-};
+//   return reqObj;
+// };
 
-async function testNewJudge() {
-  return new Promise((resolve, reject) => {
-    const reqOptions = {
-      host: "198.58.101.166",
-      port: 6969,
-      path: "/",
-      method: "GET",
-      headers: {
-        "Host": "198.58.101.166",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
-      },
-    };
+// async function testNewJudge() {
+//   return new Promise((resolve, reject) => {
+//     const reqOptions = {
+//       host: "http://myproxyjudgeclee.software/",
+//       port: 80,
+//       path: "index.html",
+//     };
 
-    const resObject = http.get(reqOptions, (res) => {
-      if (res.statusCode !== 200) {
-        console.log(res.statusCode);
-        res.destroy();
-      }
+//     const resObject = http.request(
+//       "http://myproxyjudgeclee.software/index.html",
+//       (res) => {
+//         if (res.statusCode !== 200) {
+//           console.log(res.statusCode);
+//           res.destroy();
+//         }
 
-      res.setEncoding("utf8");
-      let responseData = [] as string[];
-      res.on("data", (data) => {
-        responseData.push(data);
-      });
+//         let test1: Buffer;
+//         res.on("data", (data) => {
+//           test1 = Buffer.from(data);
+//         });
 
-      res.on("end", () => {});
+//         res.on("end", () => {});
 
-      res.on("error", (error) => {
-        console.log(error);
-        res.destroy();
-      });
+//         res.on("error", (error) => {
+//           console.log(error);
+//           res.destroy();
+//         });
 
-      res.on("close", () => {
-        resolve(responseData);
-      });
-    });
+//         res.on("close", () => {
+//           resolve(test1);
+//         });
+//       }
+//     );
 
-    httpReqCleanup(resObject);
-  });
-}
+//     httpReqCleanup(resObject);
+//   });
+// }
 
 // console.log(await testNewJudge());
 
