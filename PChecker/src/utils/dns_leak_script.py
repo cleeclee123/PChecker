@@ -5,7 +5,13 @@ import socket
 from random import randint
 from platform import system as system_name
 from subprocess import call as system_call
+from concurrent.futures import ThreadPoolExecutor
+
 from typing import List, Tuple
+
+from timeit import default_timer as timer
+import tracemalloc
+import ujson as json
 
 class DNSLeakCheck:
     __leak_id: str
@@ -16,8 +22,9 @@ class DNSLeakCheck:
     
     BASH_WS_DNSLEAK_TEST_URL = "https://bash.ws/dnsleak/test/" 
     
-    def __init__(self, host: str, port: str, isHTTPS=None):
+    def __init__(self, host: str, port: str, subDomainCount=10, isHTTPS=None):
         self.isHTTPS = isHTTPS
+        self.subDomainCount = subDomainCount
         try: 
             socket.inet_aton(host)
             # if isHTTPS is not passed in, check both
@@ -35,14 +42,26 @@ class DNSLeakCheck:
         fn = open(os.devnull, 'w')
         param = '-n' if system_name().lower() == 'windows' else '-c'
         command = ['ping', param, '1', host]
-        retcode = system_call(command, stdout=fn, stderr=subprocess.STDOUT)
+        
+        try:
+            subprocess.check_output(command, stderr=subprocess.STDOUT, universal_newlines=True)
+        except subprocess.CalledProcessError:
+            fn.close()
+            return False
         fn.close()
-        return retcode == 0
+        return True
+        # retcode = system_call(command, stdout=fn, stderr=subprocess.STDOUT)
+        # return retcode == 0
 
     def __generate_subdomains(self):
         self.__leak_id = randint(1000000, 9999999)
-        for x in range(0, 10):
-            self.__ping('.'.join([str(x), str(self.__leak_id), "bash.ws"]))
+        subdomains = ['.'.join([str(x), str(self.__leak_id), "bash.ws"]) for x in range(self.subDomainCount)]
+        
+        with ThreadPoolExecutor(max_workers=self.subDomainCount) as executor:
+            results = executor.map(self.__ping, subdomains)
+        
+        # for x in range(0, 10):
+        #    self.__ping('.'.join([str(x), str(self.__leak_id), "bash.ws"]))
     
     def __make_requests(self):
         if (self.isHTTPS is None):
@@ -80,7 +99,6 @@ class DNSLeakCheck:
             self.__conclusion = 0
             return
         else:
-            print("You use "+str(servers)+" DNS servers:")
             for dns_server in self.__parsed_results:
                 if dns_server['type'] == "dns":
                     if dns_server['country_name']:
@@ -100,17 +118,27 @@ class DNSLeakCheck:
                     self.__conclusion = dns_server['ip']
                     
     def generate_report(self):
+        start = timer()
         self.__generate_subdomains()
         self.__make_requests()
         self.__parse_client_ip()
         self.__parse_dns_servers_used()
         self.__is_leaking()
-
+        end = timer()
+        print((end - start) * 1000, "ms")
+        
         return {
             "client_ip": self.__clientIP,
+            "dns_servers_used_count": len(self.__dnsServersUsed),
             "dns_servers_used": self.__dnsServersUsed,
             "conclusion": self.__conclusion,
         }
 
+
+tracemalloc.start()
+
 checker = DNSLeakCheck("186.121.235.222", "8080", False)
-print(checker.generate_report())
+print(json.dumps(checker.generate_report(), indent=4))
+
+print(tracemalloc.get_traced_memory())
+tracemalloc.stop()
