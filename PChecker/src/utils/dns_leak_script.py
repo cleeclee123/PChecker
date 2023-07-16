@@ -137,7 +137,7 @@ class DNSLeakCheck:
 
 tracemalloc.start()
 
-checker = DNSLeakCheck("186.121.235.222", "8080", False)
+checker = DNSLeakCheck(host="186.121.235.222", port="8080", isHTTPS=False, subDomainCount=10)
 print(json.dumps(checker.generate_report(), indent=4))
 
 print(tracemalloc.get_traced_memory())
