@@ -2,9 +2,9 @@ import os
 import subprocess
 import requests
 import socket
+import sys
 from random import randint
 from platform import system as system_name
-from subprocess import call as system_call
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import List, Tuple
@@ -23,15 +23,21 @@ class DNSLeakCheck:
     BASH_WS_DNSLEAK_TEST_URL = "https://bash.ws/dnsleak/test/" 
     
     def __init__(self, host: str, port: str, subDomainCount=10, isHTTPS=None):
-        self.isHTTPS = isHTTPS
+        if isHTTPS == "False" or isHTTPS == "false":
+            self.isHTTPS = False 
+        elif isHTTPS == "True" or isHTTPS == "true":
+            self.isHTTPS = True 
+        else:
+            self.isHTTPS = None 
+            
         self.subDomainCount = subDomainCount
         try: 
             socket.inet_aton(host)
             # if isHTTPS is not passed in, check both
-            if (isHTTPS is None):
+            if (self.isHTTPS is None):
                 self.https_proxy = f"https://{host}:{port}"
                 self.http_proxy = f"http://{host}:{port}"
-            elif (isHTTPS):
+            elif (self.isHTTPS):
                 self.https_proxy = f"https://{host}:{port}"
             else:
                 self.http_proxy = f"http://{host}:{port}"
@@ -55,11 +61,10 @@ class DNSLeakCheck:
 
     def __generate_subdomains(self):
         self.__leak_id = randint(1000000, 9999999)
-        subdomains = ['.'.join([str(x), str(self.__leak_id), "bash.ws"]) for x in range(self.subDomainCount)]
+        subdomains = ['.'.join([str(x), str(self.__leak_id), "bash.ws"]) for x in range(int(self.subDomainCount))]
         
-        with ThreadPoolExecutor(max_workers=self.subDomainCount) as executor:
-            results = executor.map(self.__ping, subdomains)
-        
+        with ThreadPoolExecutor(max_workers=int(self.subDomainCount)) as executor:
+            executor.map(self.__ping, subdomains)
         # for x in range(0, 10):
         #    self.__ping('.'.join([str(x), str(self.__leak_id), "bash.ws"]))
     
@@ -118,27 +123,43 @@ class DNSLeakCheck:
                     self.__conclusion = dns_server['ip']
                     
     def generate_report(self):
-        start = timer()
-        self.__generate_subdomains()
-        self.__make_requests()
-        self.__parse_client_ip()
-        self.__parse_dns_servers_used()
-        self.__is_leaking()
-        end = timer()
-        print((end - start) * 1000, "ms")
-        
-        return {
-            "client_ip": self.__clientIP,
-            "dns_servers_used_count": len(self.__dnsServersUsed),
-            "dns_servers_used": self.__dnsServersUsed,
-            "conclusion": self.__conclusion,
-        }
+        try:
+            start = timer()
+            self.__generate_subdomains()
+            self.__make_requests()
+            self.__parse_client_ip()
+            self.__parse_dns_servers_used()
+            self.__is_leaking()
+            end = timer()
+            
+            return {
+                "client_ip": self.__clientIP,
+                "dns_servers_used_count": len(self.__dnsServersUsed),
+                "dns_servers_used": self.__dnsServersUsed,
+                "conclusion": self.__conclusion,
+                "performance": f"{(end - start) * 1000} ms"
+            }
+            
+        except Exception as e:
+            return {
+                "error": str(e)
+            }
 
-
+""""
 tracemalloc.start()
-
 checker = DNSLeakCheck(host="186.121.235.222", port="8080", isHTTPS=False, subDomainCount=10)
 print(json.dumps(checker.generate_report(), indent=4))
-
 print(tracemalloc.get_traced_memory())
 tracemalloc.stop()
+"""
+
+arg_list = sys.argv
+
+if (len(arg_list) == 5):
+    checker = DNSLeakCheck(host=arg_list[1], port=arg_list[2], subDomainCount=arg_list[3], isHTTPS=arg_list[4])
+elif (len(arg_list) == 4): 
+    checker = DNSLeakCheck(host=arg_list[1], port=arg_list[2], subDomainCount=arg_list[3])
+else: 
+    print({"error": "Bad Args"})
+
+print(json.dumps(checker.generate_report(), indent=4))

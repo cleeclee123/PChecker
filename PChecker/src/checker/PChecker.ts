@@ -65,6 +65,19 @@ export class PChecker extends PCheckerMixin {
   }
 
   /**
+   * @method: checkDNSLeak()
+   * @returns Promise<ProxyDNSCheck | ProxyError>
+   * runs dns leak check
+   */
+  public async checkDNSLeak_PythonScript(subdomainCount=10, isHttps: boolean) {
+    this.nullChecks();
+    const dnsLeakCheck = await this.checkProxyDNSLeak_PythonScript(subdomainCount, isHttps);
+    this.clearTimeouts();
+
+    return dnsLeakCheck;
+  }
+
+  /**
    * @method: checkWebRTCLeak()
    * @returns Promise<boolean | ProxyError>
    * checks if public ip address is leaked via WebRTC

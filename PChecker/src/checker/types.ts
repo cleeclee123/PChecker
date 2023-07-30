@@ -67,7 +67,7 @@ export type ProxyInfoFromHttps = {
 };
 
 export type ProxyContentCheck = {
-  hasChanged: boolean;
+  hasChanged?: boolean;
   hasUnwantedContent?: boolean;
   hasAds?: boolean;
   hasScripts?: boolean;
@@ -79,14 +79,16 @@ export type ProxyContentCheck = {
   hasRedirect?: boolean;
   hasTracker?: boolean;
   hasMiner?: boolean;
+  error?: any;
 };
 
 export type ProxyDNSCheck = {
-  bashWSDomains: string[];
-  currentServer: string;
-  dnsServerCount: number;
-  dnsServers: DNSResponseServer[];
-  conclusion: DNSLeakEnum;
+  bashWSDomains?: string[];
+  currentServer?: string;
+  dnsServerCount?: number;
+  dnsServers?: DNSResponseServer[];
+  conclusion?: DNSLeakEnum;
+  error?: any;
 };
 
 export type DNSResponseServer = {

@@ -49,10 +49,10 @@ console.time();
 // let p1 = new PChecker.PChecker("34.98.65.22", "5223", "5000");
 
 const proxyOptions = {
-  host: "50.223.129.104",
-  port: "80",
-  timeout: "20000",
-  publicIPAddress: "64.189.16.188",
+  host: "64.225.4.81",
+  port: "9995",
+  timeout: "10000",
+  publicIPAddress: "64.189.16.144",
   // sitesToCheck: [
   //   "https://google.com",
   //   "https://finance.yahoo",
@@ -63,7 +63,8 @@ const proxyOptions = {
 
 const p1 = new PChecker.PChecker(proxyOptions);
 
-let check1 = await p1.checkEssential();
+let check1 = await p1.checkDNSLeak_PythonScript(10, false);
+
 console.log(check1);
 
 //////////////////////////////////////////////////////////////
@@ -83,59 +84,61 @@ console.log(check1);
 //////////////////////////////////////////////////////////////
 // Test HTTP Requests
 
-// const httpReqCleanup = (reqObj: http.ClientRequest) => {
-//   reqObj.on("error", (error) => {
-//     console.log("http error");
-//     console.log(error);
-//     reqObj.destroy();
-//   });
+const httpReqCleanup = (reqObj: http.ClientRequest) => {
+  reqObj.on("error", (error) => {
+    console.log("http error");
+    console.log(error);
+    reqObj.destroy();
+  });
 
-//   reqObj.on("close", () => {
-//     console.log("http closed");
-//   });
+  reqObj.on("close", () => {
+    console.log("http closed");
+  });
 
-//   reqObj.end();
+  reqObj.end();
 
-//   return reqObj;
-// };
+  return reqObj;
+};
 
-// async function testNewJudge() {
-//   return new Promise((resolve, reject) => {
-//     const reqOptions = {
-//       host: "http://myproxyjudgeclee.software/",
-//       port: 80,
-//       path: "index.html",
-//     };
+async function testNewJudge() {
+  return new Promise((resolve, reject) => {
+    const reqOptions = {
+      host: "186.121.235.222",
+      port: 8080,
+      path: "https://bash.ws/dnsleak/test/2647048?json"
+    };
 
-//     const resObject = http.request(
-//       "http://myproxyjudgeclee.software/index.html",
-//       (res) => {
-//         if (res.statusCode !== 200) {
-//           console.log(res.statusCode);
-//           res.destroy();
-//         }
+    const resObject = http.request(reqOptions, (res) => {
+        const start = new Date().getTime();
 
-//         let test1: Buffer;
-//         res.on("data", (data) => {
-//           test1 = Buffer.from(data);
-//         });
+        if (res.statusCode !== 200) {
+          console.log(`Non-200 Status Code: ${res.statusCode}`)
+          res.resume();
+          res.destroy();
+        }
 
-//         res.on("end", () => {});
+        let test1: Buffer[] = [];
+        res.on("data", (data) => {
+          test1.push(data);
+        });
 
-//         res.on("error", (error) => {
-//           console.log(error);
-//           res.destroy();
-//         });
+        res.on("end", () => {
+          resolve(Buffer.concat(test1).toString());
+        });
 
-//         res.on("close", () => {
-//           resolve(test1);
-//         });
-//       }
-//     );
+        res.on("error", (error) => {
+          console.log(error);
+        });
 
-//     httpReqCleanup(resObject);
-//   });
-// }
+        res.on("close", () => {
+          console.log(`Socket closed, Res: ${new Date().getTime() - start} ms`);
+        });
+      }
+    );
+
+    httpReqCleanup(resObject);
+  });
+}
 
 // console.log(await testNewJudge());
 

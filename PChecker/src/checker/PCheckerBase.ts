@@ -223,7 +223,7 @@ export class PCheckerBase {
   // function creates timeout, mem is managed by clearTimeouts()
   protected createTimeout<T>(data: any) {
     const timeoutPromise: Promise<T> = new Promise((resolve) =>
-      setTimeout(() => resolve({ timeoutdata: data } as T), this.timeout_)
+      setTimeout(() => resolve({ error: data } as T), this.timeout_)
     );
     this.timeoutsArray_.push(timeoutPromise);
 
