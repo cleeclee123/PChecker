@@ -1,52 +1,57 @@
 # PChecker
-Proxy Checker API
+## Proxy Validation API
 
-Example Response: 
+## Example Usage:
 
-```json
+```Typescript
+const proxyOptions = {
+  host: "122.147.138.136",
+  port: "8118",
+  timeout: "10000",
+  publicIPAddress: "64.189.16.65",
+  sitesToCheck: [
+    "https://google.com",
+    "https://finance.yahoo",
+    "https://www.google.com/finance",
+  ],
+  runProxyLocation: true,
+} as PCheckerOptions;
+
+const p1 = new PChecker.PChecker(proxyOptions);
+
+let check1: ProxyInfoEssential = await p1.checkEssential();
+console.log(check1);
+```
+
+### Output
+```
+[2023-07-30T05:00:20.484Z] info: https connncted
+[2023-07-30T05:00:21.023Z] info: https://google.com check status code: 400
+[2023-07-30T05:00:21.027Z] info: https://google.com Response Time: 768
+[2023-07-30T05:00:21.028Z] info: HTTP Request Socket Closed (https://google.com)
+[2023-07-30T05:00:21.219Z] info: https://finance.yahoo check status code: 400
+[2023-07-30T05:00:21.220Z] info: https://finance.yahoo Response Time: 959
+[2023-07-30T05:00:21.221Z] info: HTTP Request Socket Closed (https://finance.yahoo)
+[2023-07-30T05:00:21.228Z] info: checkProxyHTTPS statusCode: 200
+[2023-07-30T05:00:21.229Z] info: HTTPS Socket Closed
+[2023-07-30T05:00:21.231Z] info: https://www.google.com/finance check status code: 400
+[2023-07-30T05:00:21.232Z] info: https://www.google.com/finance Response Time: 970
+[2023-07-30T05:00:21.232Z] info: HTTP Request Socket Closed (https://www.google.com/finance)
+[2023-07-30T05:00:21.818Z] info: HTTP Request Object Closed (GET_LOCATION)
+[2023-07-30T05:00:21.822Z] info: getProxyLocation response time: 1559 ms
+[2023-07-30T05:00:21.846Z] info: checkProxyAnonymity status code: 200
+[2023-07-30T05:00:21.849Z] info: checkProxyAnonymity network response: 1587
+[2023-07-30T05:00:21.851Z] info: pj res: {"host":"198.58.101.166:6969","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246","connection":"keep-alive","addr":"122.147.138.136","port":52890,"scheme":"http","method":"GET","time":1690693221012,"duration":"2.6222049999999997ms"}
+
 {
-  anonymity: 'Anonymous',
-  headers: {
-    res: {
-      HOST: 'myproxyjudgeclee.software',
-      CONNECTION: 'close',
-      VIA: '1.1 vnode53-proxysvr.vultrcloud-vps.uk-area1.example.com (tinyproxy/1.11.0)',
-      USER_AGENT: 'curl/7.83.1',
-      ACCEPT: '*/ *',
-      ADDR: '104.238.183.155',
-      SCHEME: 'http',
-      PORT: '53610',
-      METHOD: 'GET',
-      URI: '/pj-cleeclee123.php',
-      TIME_FLOAT: 1673804734.762916,
-      TIME: 1673804734
-    },
-    req: {
-      Host: ' myproxyjudgeclee.software',
-      'User-Agent': ' curl/7.83.1',
-      Accept: ' */ *'
-    }
-  },
-  cause: [ 'VIA' ],
-  https: { status: '200', https: true },
-  google: true,
-  ping: {
-    namelookup: '0.000035',
-    connect: '0.061915',
-    appconnect: '0.000000',
-    pretransfer: '0.062552',
-    redirect: '0.000000',
-    starttransfer: '0.270633',
-    total: '0.272036'
-  },
-  location: {
-    country: 'United States',
-    region: 'California',
-    city: 'Santa Clara',
-    zip: '95054',
-    location: { lat: '37.3931', long: '-121.962' },
-    tz: 'America/Los_Angeles',
-    isp: 'The Constant Company'
-  }
+  google_support: false,
+  financeyahoo_support: false,
+  googlefinance_support: false,
+  anonymity: 'Elite',
+  checkAnonymityTime: 1591,
+  httpConnectRes: 967,
+  https: true,
+  countryCode: 'TW',
+  proxyString: '122.147.138.136:8118'
 }
 ```
