@@ -13,6 +13,8 @@ import {
   DNSResponseServer,
   PCheckerOptions,
   PCheckerErrorObject,
+  DNSInfo,
+  DNSLeakCheckPyScript,
 } from "./types.js";
 import { ErrorsEnum, DNSLeakEnum, PCheckerErrors } from "./emuns.js";
 import { PCheckerBase } from "./PCheckerBase.js";
@@ -378,7 +380,20 @@ export class PCheckerMethods extends PCheckerBase {
     let arg4 = httpsStatus ? "true" : "false";
     if (httpsStatus === undefined) arg4 = undefined;
 
+    const mapArrayToType = <T extends Record<string, any>>(
+      arr: any[],
+      keys: (keyof T)[]
+    ): T => {
+      const result = {} as T;
+      keys.forEach((key, index) => {
+        result[key] = arr[index];
+      });
+      return result;
+    };
+
     const childProcessPromise = new Promise((resolve, reject) => {
+      const dnsLeakScriptResults = {} as DNSLeakCheckPyScript;
+
       const pythonProcess = spawn("python", [
         "./src/utils/dns_leak_script.py",
         this.host_,
@@ -394,10 +409,36 @@ export class PCheckerMethods extends PCheckerBase {
       pythonProcess.stderr.on("data", (data) => bufferStderr.push(data));
 
       pythonProcess.on("close", (code) => {
-        this.logger_.info(`Exited with Code: ${code}`);
+        this.logger_.info(`Process exited with Code: ${code}`);
+        if (code !== 0) {
+          reject(ErrorsEnum.CHILD_PROCESS_ERROR);
+          return;
+        }
 
-        if (bufferStderr.length > 0) reject(JSON.parse(Buffer.concat(bufferStderr).toString()))
-        resolve(JSON.parse(Buffer.concat(bufferStdout).toString()));
+        if (bufferStderr.length > 0) {
+          this.logger_.error(
+            JSON.parse(Buffer.concat(bufferStderr).toString())
+          );
+          reject(ErrorsEnum.DNS_LEAK_SCRIPT_ERROR);
+          return;
+        }
+
+        const results = JSON.parse(Buffer.concat(bufferStdout).toString());
+        const dnsLeakInfoKeys: (keyof DNSInfo)[] = ["ip", "country", "isp"];
+
+        dnsLeakScriptResults.client_ip = mapArrayToType(
+          results["client_ip"],
+          dnsLeakInfoKeys
+        );
+        dnsLeakScriptResults.dns_servers_used_count =
+          results["dns_servers_used_count"];
+        dnsLeakScriptResults.dns_servers_used = (
+          results["dns_servers_used"] as string[]
+        ).map((e: any) => mapArrayToType(e, dnsLeakInfoKeys));
+        dnsLeakScriptResults.conclusion = results["conclusion"];
+        dnsLeakScriptResults.performance = results["performance"];
+
+        resolve(dnsLeakScriptResults);
       });
     });
 

@@ -91,6 +91,20 @@ export type ProxyDNSCheck = {
   error?: any;
 };
 
+export type DNSInfo = {
+  ip: string;
+  country: string;
+  isp: string;
+}
+
+export type DNSLeakCheckPyScript = {
+  client_ip: DNSInfo;
+  dns_servers_used_count: number;
+  dns_servers_used: DNSInfo[];
+  conclusion: string;
+  performance: string;
+}
+
 export type DNSResponseServer = {
   ip: string;
   country: string;
