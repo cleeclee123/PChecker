@@ -1,13 +1,11 @@
 "use-strict";
 
 import http from "http";
-import net from "net";
 import dns from "dns";
 import puppeteer, { Browser, Page } from "puppeteer";
 import { promisify } from "util";
 import { spawn } from "child_process";
 import {
-  ProxyError,
   ProxyContentCheck,
   ProxyDNSCheck,
   DNSResponseServer,
@@ -15,11 +13,11 @@ import {
   PCheckerErrorObject,
   DNSInfo,
   DNSLeakCheckPyScript,
+  WebRTCLeakCheck,
 } from "./types.js";
 import { ErrorsEnum, DNSLeakEnum, PCheckerErrors } from "./emuns.js";
 import { PCheckerBase } from "./PCheckerBase.js";
 import * as dotenv from "dotenv";
-import { child } from "winston";
 
 dotenv.config();
 
@@ -374,8 +372,9 @@ export class PCheckerMethods extends PCheckerBase {
   protected async checkProxyDNSLeak_PythonScript(
     subdomainCount = 10,
     httpsStatus?: boolean
-  ) /* : Promise<ProxyDNSCheck> */ {
-    const timeoutPromise: Promise<boolean> = this.createTimeout("timeout");
+  ): Promise<DNSLeakCheckPyScript> {
+    const timeoutPromise: Promise<DNSLeakCheckPyScript> =
+      this.createTimeout("timeout");
 
     let arg4 = httpsStatus ? "true" : "false";
     if (httpsStatus === undefined) arg4 = undefined;
@@ -454,8 +453,9 @@ export class PCheckerMethods extends PCheckerBase {
    * @returns: Promise<bool | Error>
    * Check if proxy server will cause a WebRTC leak
    */
-  protected async checkProxyWebRTCLeak(): Promise<boolean | ProxyError> {
-    const timeoutPromise: Promise<boolean> = this.createTimeout("timedout");
+  protected async checkProxyWebRTCLeak(): Promise<WebRTCLeakCheck> {
+    const timeoutPromise: Promise<WebRTCLeakCheck> =
+      this.createTimeout("timedout");
 
     // creates new WebRTC connection and gather ICE candidates
     const getCandidates = async () => {
@@ -523,17 +523,17 @@ export class PCheckerMethods extends PCheckerBase {
       const candidates = await getCandidates();
       for (let i = 0; i < candidates.length; i++) {
         const candidate = candidates[i];
-        if (candidate.indexOf(this.publicIPAddress_)) return true;
+        if (candidate.indexOf(this.publicIPAddress_))
+          return { isLeaking: true } as WebRTCLeakCheck;
       }
 
-      return false;
+      return { isLeaking: false } as WebRTCLeakCheck;
     };
 
     try {
       return Promise.race([hasLeak(), timeoutPromise]);
     } catch (error) {
-      this.logger_.error(`webrtc leak check PromiseRace Error: ${error}`);
-      return { error: ErrorsEnum.PROMISE_RACE_ERROR } as ProxyError;
+      return { error: error };
     }
   }
 }

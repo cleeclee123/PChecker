@@ -5,12 +5,8 @@ import { PCheckerEssential } from "./PCheckerEssential.js";
 import { PCheckerBase } from "./PCheckerBase.js";
 import {
   ProxyInfoEssential,
-  ProxyError,
-  ProxyInfoFromHttp,
-  ProxyInfoFromHttps,
   ProxyContentCheck,
   ProxyDNSCheck,
-  ProxyLocation,
   PCheckerOptions,
 } from "./types.js";
 
@@ -43,7 +39,7 @@ export class PChecker extends PCheckerMixin {
    * @returns Promise<ProxyInfoFromHttp | ProxyError>
    * runs content check
    */
-  public async checkContent(): Promise<ProxyContentCheck | ProxyError> {
+  public async checkContent(): Promise<ProxyContentCheck> {
     this.nullChecks();
     const contentCheck = await this.checkProxyContent();
     this.clearTimeouts();
@@ -56,7 +52,7 @@ export class PChecker extends PCheckerMixin {
    * @returns Promise<ProxyDNSCheck | ProxyError>
    * runs dns leak check
    */
-  public async checkDNSLeak(): Promise<ProxyDNSCheck | ProxyError> {
+  public async checkDNSLeak(): Promise<ProxyDNSCheck> {
     this.nullChecks();
     const dnsLeakCheck = await this.checkProxyDNSLeak();
     this.clearTimeouts();
@@ -82,7 +78,7 @@ export class PChecker extends PCheckerMixin {
    * @returns Promise<boolean | ProxyError>
    * checks if public ip address is leaked via WebRTC
    */
-  public async checkWebRTCLeak(): Promise<any> {
+  public async checkWebRTCLeak() {
     this.nullChecks();
     const leakCheck = await this.checkProxyWebRTCLeak();
     this.clearTimeouts();
@@ -98,28 +94,6 @@ export class PChecker extends PCheckerMixin {
   public async checkEssential(): Promise<ProxyInfoEssential> {
     this.nullChecks();
     const essential = await this.checkProxyEssential();
-
-    // final cleanup
-    let combineErrMes: string[] = [];
-    if (essential.judgeError) {
-      combineErrMes.push(String(essential.judgeError));
-      delete essential.judgeError;
-    }
-    if (essential.timeoutError) {
-      combineErrMes.push(String(essential.timeoutError));
-      delete essential.timeoutError;
-    }
-    if (essential.unknownError) {
-      combineErrMes.push(String(essential.unknownError));
-      delete essential.unknownError;
-    }
-
-    // if (essential.errors) {
-    //   essential.errors.concat(combineErrMes);
-    // } else if (combineErrMes.length > 0) {
-    //   essential.errors = combineErrMes;
-    // }
-
     this.clearTimeouts();
 
     return essential;

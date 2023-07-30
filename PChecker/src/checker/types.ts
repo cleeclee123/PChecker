@@ -98,11 +98,12 @@ export type DNSInfo = {
 }
 
 export type DNSLeakCheckPyScript = {
-  client_ip: DNSInfo;
-  dns_servers_used_count: number;
-  dns_servers_used: DNSInfo[];
-  conclusion: string;
-  performance: string;
+  client_ip?: DNSInfo;
+  dns_servers_used_count?: number;
+  dns_servers_used?: DNSInfo[];
+  conclusion?: string;
+  performance?: string;
+  error?: any;
 }
 
 export type DNSResponseServer = {
@@ -112,6 +113,11 @@ export type DNSResponseServer = {
   asn: string;
   type: string;
 };
+
+export type WebRTCLeakCheck = {
+  isLeaking?: boolean;
+  error?: any;
+}
 
 export type ProxyInfoEssential = {
   checkAnonymityTime?: number;
